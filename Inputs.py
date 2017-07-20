@@ -88,6 +88,7 @@ class Inputs(Talker):
                 return False
             else:
                 try: return float(s)
+                except(ValueError): return float(dictionary[s])
                 except(ValueError): return str(dictionary[s])
 
 
@@ -131,6 +132,7 @@ class Inputs(Talker):
             self.speak('oh no! incorrect number of bounds!')
             return
 
+        # making parambounds, paramlabels, paramvalues - these include both fitparams and tranparams that will be fitted for
         self.parambounds = [[True for t in self.fitlabels],[True for t in self.fitlabels]]
         self.paramlabels, self.paramvalues = [f for f in self.fitlabels], [1 for f in self.fitlabels]
         for i in range(len(self.tranparams)):

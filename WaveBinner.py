@@ -18,6 +18,7 @@ class WaveBinner(Talker):
             self.speak('reading in wavebin parameters from subcube saved in {0}'.format(self.detrender.directoryname))
             self.binindices = self.cube.subcube['wavebin']['binindices']
             self.wavelims = self.cube.subcube['wavebin']['wavelims']
+            self.wavefiles = self.cube.subcube['wavebin']['wavefiles']
         else: self.makeBinIndices()
 
 
@@ -77,10 +78,11 @@ class WaveBinner(Talker):
                     self.binindices[n][s+1][i] = indarray
 
         self.speak('saving wavebin properties to the subcube')
-        subcube = np.load(self.inputs.saveas+'_subcube.npy')[()]
-        subcube['wavebin'] = {}
-        subcube['wavebin']['binindices'] = self.binindices
-        subcube['wavebin']['wavelims'] = self.wavelims
-        np.save(self.inputs.saveas+'_subcube.npy', subcube)
+        self.cube.subcube['wavebin'] = {}
+        self.cube.subcube['wavebin']['binindices'] = self.binindices
+        self.cube.subcube['wavebin']['wavelims'] = self.wavelims
+        self.wavefiles = [str(i[0])+'-'+str(i[1]) for i in self.wavelims]
+        self.cube.subcube['wavebin']['wavefiles'] = self.wavefiles
+        np.save(self.inputs.saveas+'_subcube.npy', self.cube.subcube)
 
 

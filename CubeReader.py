@@ -2,6 +2,7 @@ import zachopy.Talker
 Talker = zachopy.Talker.Talker
 import numpy as np
 import collections
+from Plotter import Plotter
 
 class CubeReader(Talker):
     ''' Reads in the datacube in the local directory'''
@@ -99,6 +100,7 @@ class CubeReader(Talker):
         np.save(self.inputs.saveas+'_subcube.npy', self.subcube)
         self.speak('subcube saved')
 
+
     def makeCompCube(self, subbinindices, *binnedok):
         '''A minicube is a subset of a subcube that only includes the relevant wavelength information for a given wavelength bin'''
 
@@ -113,8 +115,9 @@ class CubeReader(Talker):
         self.compcube = {}
         self.compcube['binnedok'] = self.binnedok
         self.compcube['bjd'] = self.subcube['bjd'][self.binnedok]
+        self.compcube['norm'] = self.subcube['norm'][self.binnedok]
 
-        for key in ['airmass', 'rotangle', 'pwv', 'norm']:
+        for key in ['airmass', 'rotangle', 'pwv']:
             self.compcube[key] = (self.subcube[key][self.binnedok] - np.mean(self.subcube[key][self.binnedok]))/(np.std(self.subcube[key][self.binnedok]))
 
         if self.inputs.invvar: 

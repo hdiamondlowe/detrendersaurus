@@ -3,6 +3,8 @@ Talker = zachopy.Talker.Talker
 from Inputs import Inputs
 from CubeReader import CubeReader
 from LCMaker import LCMaker
+from LMFitter import LMFitter
+from MCFitter import MCFitter
 
 class Detrender(Talker):
     '''Detrenders are objects for detrending data output by mosasaurus.'''
@@ -43,18 +45,15 @@ class Detrender(Talker):
     
     def detrend(self):
         
-        self.speak('detrending data from night {0} in directory {1}'.format(
+        self.speak('detrending data from night {1} in directory {1}'.format(
                         self.inputs.nightname, self.directoryname))
 
-        # set up the calibrations and mask
-        self.calib.setup()
-        self.mask.setup()
+        for wavefile in self.lcs.wavebin.wavefiles:
+            self.lmfit = LMFitter(self, wavefile)
 
-        # load the headers for this observation
-        self.obs.loadHeaders()
+        if self.inputs.domcmc:
+            for wavefile in self.lcs.wavebin.wavefiles:
+               self.mcfit = MCFitter(self, wavefile)
 
-        # create an observing log from all the image headers from this night
-        self.night.obsLog()
-
-        # loop over exposures and apertures
-        self.mask.extractEverything(remake=remake)
+        self.speak('detrender done')
+        self.speak('detrendersaurus has done all it can do for your data. goodbye.')

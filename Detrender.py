@@ -30,9 +30,9 @@ class Detrender(Talker):
         # load in the input parameters from input.init
         
         try: 
-            self.inputs = Inputs(self, self.directoryname)
+            self.inputs = Inputs(self.directoryname)
         except(AttributeError): 
-            self.inputs = Inputs(self)
+            self.inputs = Inputs()
             self.directoryname = self.inputs.directoryname
 
         self.datacubepath = './trimmed_cube.npy'

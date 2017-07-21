@@ -130,7 +130,7 @@ class Plotter(Talker):
 
         self.speak('making lightcurve and lmfit model vs time figure')
         plt.figure(figsize=(14,12))
-        gs = plt.matplotlib.gridspec.GridSpec(3, 1, hspace=0.15, wspace=0.15, left=0.06,right=0.98, bottom=0.07, top=0.92)
+        gs = plt.matplotlib.gridspec.GridSpec(3, 1, hspace=0.15, wspace=0.15, left=0.08,right=0.98, bottom=0.07, top=0.92)
         lcplots = {}
         lcplots.setdefault('lcplusmodel', []).append(plt.subplot(gs[0:2,0]))
         lcplots.setdefault('residuals', []).append(plt.subplot(gs[2,0]))
@@ -154,7 +154,7 @@ class Plotter(Talker):
         plt.plot(self.cube.subcube['bjd'][self.wavebin['binnedok']]-self.inputs.t0, modelobj.batmanmodel, color="#4682b4", lw=2)
         plt.xlabel('bjd-'+str(self.inputs.t0), fontsize=20)
         plt.ylabel('normalized flux', fontsize=20)
-        plt.title('lmfit for '+self.inputs.nightname+', '+self.wavefile+' angstroms')
+        plt.title('lmfit for '+self.inputs.nightname+', '+self.wavefile+' angstroms', fontsize=20)
         plt.tight_layout()
         plt.savefig(self.inputs.saveas+'_'+self.wavefile+'_figure_lmfitdetrendedlc.png')
         plt.clf()
@@ -244,7 +244,7 @@ class Plotter(Talker):
 
         self.speak('making lightcurve and mcfit model vs time figure')
         plt.figure(figsize=(14,12))
-        gs = plt.matplotlib.gridspec.GridSpec(3, 1, hspace=0.15, wspace=0.15, left=0.06,right=0.98, bottom=0.07, top=0.92)
+        gs = plt.matplotlib.gridspec.GridSpec(3, 1, hspace=0.15, wspace=0.15, left=0.08,right=0.98, bottom=0.07, top=0.92)
         lcplots = {}
         lcplots.setdefault('lcplusmodel', []).append(plt.subplot(gs[0:2,0]))
         lcplots.setdefault('residuals', []).append(plt.subplot(gs[2,0]))
@@ -257,7 +257,7 @@ class Plotter(Talker):
         lcplots['residuals'][0].set_xlabel('bjd-'+str(self.inputs.t0), fontsize=20)
         lcplots['residuals'][0].set_ylabel('residuals', fontsize=20)
 
-        plt.suptitle(self.inputs.nightname+' lightcurve plus mcmc model, '+self.wavefile+' angstroms')
+        plt.suptitle(self.inputs.nightname+' lightcurve plus mcmc model, '+self.wavefile+' angstroms', fontsize=20)
         plt.savefig(self.inputs.saveas+'_'+self.wavefile+'_figure_mcfitlcplusmodel.png')
         plt.clf()
         plt.close()
@@ -268,13 +268,13 @@ class Plotter(Talker):
         plt.plot(self.cube.subcube['bjd'][self.wavebin['binnedok']]-self.inputs.t0, modelobj.batmanmodel, color="#4682b4", lw=2)
         plt.xlabel('bjd-'+str(self.inputs.t0), fontsize=20)
         plt.ylabel('normalized flux', fontsize=20)
-        plt.title('lmfit for '+self.inputs.nightname+', '+self.wavefile+' angstroms')
+        plt.title('mcfit for '+self.inputs.nightname+', '+self.wavefile+' angstroms')
         plt.tight_layout()
         plt.savefig(self.inputs.saveas+'_'+self.wavefile+'_figure_mcfitdetrendedlc.png')
         plt.clf()
         plt.close()
 
-        print('making rms vs binsize figure after mcfit')
+        self.speak('making rms vs binsize figure after mcfit')
         time = self.wavebin['compcube']['bjd'] - self.inputs.t0     # days
         time = time*24.*60.                                         # time now in minutes
         sigma_resid = np.std(self.wavebin['lc']-model)

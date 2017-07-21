@@ -8,12 +8,11 @@ from astropy.table import Table
 #  an object that reads in an input.init file, stores all of the information, and also makes a copy of that file to the directory everything will get saved to
 class Inputs(Talker):
     '''Inputs object reads input.init information and copies that file to the working directry (if it's not already there).'''
-    def __init__(self, detrender, *directoryname):
+    def __init__(self, *directoryname):
         '''Initialize an Inputs object.'''
 
         Talker.__init__(self)
 
-        self.detrender = detrender
 
         if directoryname:
             self.speak('going into directory {0}'.format(directoryname[0]))
@@ -29,7 +28,7 @@ class Inputs(Talker):
         file = open('input.init')
         lines = file.readlines()
         dictionary = {}
-        for i in range(2):
+        for i in range(3):
           if lines[i] != '\n' and lines[i][0] != '#':
             split = lines[i].split()
             key = split[0]
@@ -40,6 +39,7 @@ class Inputs(Talker):
 
         self.filename = str(dictionary['filename'])
         self.nightname = str(dictionary['nightname'])
+        self.starlist = str(dictionary['starlist'])
 
         # create working folder for the files
         dt = datetime.now()
@@ -56,8 +56,9 @@ class Inputs(Talker):
         self.saveas = self.directoryname+self.nightname
         self.outfile = self.saveas+'_output_'
 
-        self.speak('copying "input.init" to the new directory')
+        self.speak('copying "input.init" and starlist to the new directory')
         copyfile('./input.init', self.directoryname+self.nightname+'_input.init')
+        copyfile('./'+self.starlist, self.directoryname+self.nightname+'_'+self.starlist)
 
         self.readInputs()
 
@@ -101,7 +102,8 @@ class Inputs(Talker):
         except(OSError): pass
 
         self.starlist = dictionary['starlist']
-        star = Table.read(self.starlist, format='ascii', delimiter='&')
+        star = Table.read(self.directoryname+self.nightname+'_'+self.starlist, format='ascii', delimiter='&')
+        #except(IOError): star = Table.read(self.greaterpath+self.starlist, format='ascii', delimiter='&')
         self.comparison = []
         self.comparisonpx = []
         for s in star:
@@ -154,7 +156,6 @@ class Inputs(Talker):
         self.invvar = str_to_bool(dictionary['invvar'])
         self.ldmodel = str_to_bool(dictionary['ldmodel'])
         self.domcmc = str_to_bool(dictionary['domcmc'])
-        self.saveparams = str_to_bool(dictionary['saveparams'])
 
         self.mastern = dictionary['mastern']
         self.starmasterstr = dictionary['starmasterstr']+self.mastern+'.npy'

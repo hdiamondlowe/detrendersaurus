@@ -116,7 +116,8 @@ class LMFitter(Talker, Writer):
         model = modelobj.makemodel()
         resid = self.wavebin['lc'] - model
         data_unc = np.std(resid)
-        self.write('lmfit RMS: '+str(data_unc))
+        self.write('lmfit SDNR: '+str(data_unc))  # this is the same as the rms!
+        self.write('lmfit RMS: '+str(np.sqrt(np.sum(resid**2)/len(resid))))
 
         # how many times the expected noise is the rms?
         self.write('x expected noise: {0}'.format(data_unc/self.wavebin['photnoiselim']))
@@ -124,7 +125,7 @@ class LMFitter(Talker, Writer):
         # make BIC calculation
         # var = np.power(data_unc, 2.)
         var = 4.5e-7    # variance must remain fixed across all trials in order to make a comparison of BIC values
-        lnlike = -0.5*np.sum(np.power((self.wavebin['lc']-model), 2.)/var + np.log(2.*np.pi*var))
+        lnlike = -0.5*np.sum((self.wavebin['lc']-model)**2/var + np.log(2.*np.pi*var))
         plbls = len(self.inputs.paramlabels)
         lnn = np.log(len(self.wavebin['lc']))
         BIC = -2.*lnlike + plbls*lnn

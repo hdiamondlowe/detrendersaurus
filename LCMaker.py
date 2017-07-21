@@ -89,7 +89,7 @@ class LCMaker(Talker, Writer):
                 self.write('comparison: '+str(self.inputs.comparison))
                 self.write('comparisonpx: '+str(self.inputs.comparisonpx))
                 self.write('photon noise limits:')
-                self.write('    target                comparison              T/C')
+                self.write('    target               comparison           T/C')
                 self.write('    '+str(sigmaT)+'    '+str(sigmaC)+'    '+str(sigmaF))
                 if self.inputs.optext: self.write('using optimally extracted spectra')
                 self.write('fit labels: '+str(self.inputs.fitlabels))

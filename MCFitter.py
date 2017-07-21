@@ -65,8 +65,8 @@ class MCFitter(Talker, Writer):
 
         def lnlike(p, lcb, inputs, wavebin):
             model = makemodellocal(inputs, wavebin, p)
-            data_unc = np.power(np.std(lcb - model), 2.)
-            return -0.5*np.sum(np.power((lcb-model), 2.)/data_unc + np.log(2.*np.pi*data_unc))
+            data_unc = (np.std(lcb - model))**2
+            return -0.5*np.sum((lcb-model)**2/data_unc + np.log(2.*np.pi*data_unc))
 
         def lnprior(p):
             for i in range(len(p)):
@@ -105,7 +105,7 @@ class MCFitter(Talker, Writer):
         self.write('mcmc acceptance: '+str(np.median(self.sampler.acceptance_fraction)))
 
         self.write('mcmc params:')
-        self.write('     parameter        value        plus        minus')
+        self.write('     parameter        value                  plus                  minus')
         [self.write('     '+self.inputs.paramlabels[i]+'     '+str(self.mcparams[i][0])+'     '+str(self.mcparams[i][1])+'     '+str(self.mcparams[i][2])) for i in range(len(self.inputs.paramlabels))]
 
         if 'dt' in self.inputs.paramlabels:

@@ -103,7 +103,6 @@ class Inputs(Talker):
 
         self.starlist = dictionary['starlist']
         star = Table.read(self.directoryname+self.nightname+'_'+self.starlist, format='ascii', delimiter='&')
-        #except(IOError): star = Table.read(self.greaterpath+self.starlist, format='ascii', delimiter='&')
         self.comparison = []
         self.comparisonpx = []
         for s in star:

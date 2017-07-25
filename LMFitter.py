@@ -136,7 +136,7 @@ class LMFitter(Talker, Writer):
         self.wavebin['linfit'] = self.linfit2
         np.save(self.inputs.saveas+'_'+self.wavefile, self.wavebin)
 
-        plot = Plotter(self.detrender)
+        plot = Plotter(self.inputs, self.cube)
         plot.shiftstretchplot()
         plot.lmplots(self.wavebin)
 

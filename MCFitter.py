@@ -129,7 +129,7 @@ class MCFitter(Talker, Writer):
         self.wavebin['mcchain'] = self.mcchain
         np.save(self.inputs.saveas+'_'+self.wavefile, self.wavebin)
 
-        plot = Plotter(self.detrender)
+        plot = Plotter(self.inputs, self.cube)
         plot.mcplots(self.wavebin)
 
         self.speak('done with mcfit for wavelength bin {0}'.format(self.wavefile))

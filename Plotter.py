@@ -11,18 +11,19 @@ class Plotter(Talker):
 
     '''this class will plot all the things you wish to see'''
 
-    def __init__(self, detrender):
-        ''' initialize the plotter'''
+    def __init__(self, inputs, cube):
+        ''' initialize the plotter 
+        directorypath is optional - it will be used by figures.py after detrender is finished '''
         Talker.__init__(self)
 
-        self.detrender = detrender
-        self.inputs = self.detrender.inputs
-        self.cube = self.detrender.cube
+        self.inputs = inputs
+        self.cube = cube
+
 
     def shiftstretchplot(self):
 
         pngfiles = []
-        for file in os.listdir(self.detrender.directoryname):
+        for file in os.listdir(self.inputs.directoryname):
             if file.endswith('.png'):
                 pngfiles.append(file)
 
@@ -311,3 +312,19 @@ class Plotter(Talker):
         plt.savefig(self.inputs.saveas+'_'+self.wavefile+'_figure_rmsbinsize.png')
         plt.clf()
         plt.close()
+
+###############################################################################
+# These next functions will be called by figures.py after detrender is finished
+###############################################################################
+
+    def multinightfigures(self):
+        subdirectories = os.listdir(self.directorypath)
+
+    def loadrun(directory, inputs, wavefile):
+        wavebin = np.load(directory+inputs.nightname+'_'+wavefile+'.npy')[()]
+        modelobj = ModelMaker(inputs, wavebin, wavebin['lmfit'])
+        model = modelobj.makemodel()
+        residuals = wavebin['lc'] - model
+        lcunc = (np.std(residuals))**2
+
+

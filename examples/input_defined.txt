@@ -1,0 +1,39 @@
+filename         bin200A-test  # name of the detrender directory that will get created and store all of your results
+nightname        2016_03_03-04  # name of the observation night in this form
+starlist         stars_newwave09.txt  # text file that lists stellar centroids on the CCD chip, as well as the aperture window adn some comments
+fitlabels        airmass rotangle width pwv stretch peak norm  # parameters to marginalize over
+                 # all the options for this are: airmass rotangle centroid width shift stretch sky dcentroid dwidth peak
+                 # NB: always include norm at the end of the list!
+
+T0               2457184.55804  # ephemeris in bjd
+P                1.6289246  # period in days 
+Tdur             0.0317909394  # duration of transit (TIV - TI) in days
+b                0.381  # impact parameter
+a                16.54  # scaled semi-major axis (a/Rs)
+ecc              0.  # eccentricity
+epochnum         164  # this is transit number [blank] after the ephermis transit
+t0               2457451.69997599  # transit midpoint of this particular transit
+                 #if you want to put in your own transit midpoint (for example, if you've run a white lightcurve fit with a free 'dt' parameter), please do so; if 'dt' is variable this will be reset during fitting
+
+tranlabels       dt rp per b a ecc u0 u1 # names of the transit parameters
+                 # dt = difference between T0 + epochnum*P and the transit midpoint; rp = scaled planet radius (Rp/Rs); per = period; b = impact parameter; a = scaled semi-major axis; ecc = eccentricity; u0,u1 = limbdarkening coefficients for a quadratic limbdarkening fit
+tranparams       -0.00169841242745 0.0512 P b a ecc 0.5 0.5     # starting varlues for tranlabels
+tranbounds_low   False 0.025 False False False False False False  # lower bounds of tranparams; False = paramter is fixed to value, True = parameter will be given some upper bound that is 100*uncertainty derived from levenberg-marquartd fit; value = fixed bound to this value
+tranbounds_high  False True False False False False False False   # upper bounds of tranparams; False = paramter is fixed to value, True = parameter will be given some upper bound that is 100*uncertainty derived from levenberg-marquartd fit; value = fixed bound to this value
+wavelength_lims  7000 10300  # upper and lower limits of the overall wavelength range you want to look at (be careful, not all stars have data at certain wavelengths) in angstroms
+
+binlen           200  # size of the wavelength bins in angstroms; 'all' for whole range (white lightcurve)
+sigclip          3.  # sigmal clipping; how many times the data uncertainty to go when clipping after levenberg-marquardt fit
+nwalkers         200  # number of mcmc walkers
+nsteps           5000  # number of mcmc steps
+burnin           250  # number of mcmc steps to burnin
+
+optext           False  # True = if there is an optimal extraction component to the data, you can use it instead
+istarget         True  # True = want to include a batman transit model; False = transit model will just be an array of 1's (useful for testing comparison stars against each other
+isasymm          False  # True = want an asymmetric fit (e.g., for Andrew Vanderburg's white dwarf and other unruly lightcurves); False = use normal transit fitting
+invvar           False  # True = weight comparison stars in lightcurve by their inverse-variance; False = simply add up flux from the comparison stars when creating the lightcurve
+ldmodel          True  # True = use ldtk to come up with u0 and u1 (will overwrite whatever you put in for u0,u1; False = fit for u0,u1
+domcmc           False # True = run mcmc (emcee) to derive final paramters; False = do not run mcmc (emcee)
+
+mastern          0945  # file number used as extraction master in mosasaurus
+starmasterstr    detrendersaurus/examples/extracted  # path to extracted star used in wavelength calibration in mosasaurus

@@ -2,10 +2,7 @@
 
 
 import sys
-sys.path.append('/home/hdiamond/local/lib/python2.7/site-packages/')
-sys.path.append('/h/mulan0/code/')
-sys.path.append('/h/mulan0/code/mosasaurus')
-sys.path.append('/h/mulan0/code/detrendersaurus')
+sys.path.append('../detrendersaurus')
 from detrendersaurus.Detrender import Detrender
 
 try:

@@ -57,6 +57,7 @@ class LCMaker(Talker, Writer):
                 bin['bininds'] = bininds
                 bin['binnedok'] = np.array([b for b in self.cube.subcube['ok']])
 
+                # make a lightcurve to work off of
                 raw_counts_targ = np.sum(self.cube.subcube['raw_counts'][self.inputs.target][self.inputs.targetpx] * bininds[:,0], 1) # shape = (numexps)
                 raw_counts_targ = raw_counts_targ/np.mean(raw_counts_targ)
                 raw_counts_comps = np.sum(np.sum([self.cube.subcube['raw_counts'][self.inputs.comparison[i]][self.inputs.comparisonpx[i]] * bininds[:, i+1] for i in range(len(self.inputs.comparison))], 0), 1)
@@ -106,13 +107,3 @@ class LCMaker(Talker, Writer):
                 np.save(self.inputs.saveas+'_'+wavefile, bin)
                 self.speak('saved dictionary for wavelength bin {0}'.format(wavefile))
 
-                
-
-        #self.cube.makeMiniCube()
-
-        #self.targcomp_binned = WBA.WavelengthBinnerAbridged(self.reducer.bjd, self.toff+self.tranparams[0], self.Tdur, self.raw_counts, self.sky, self.wavelengths, self.wavelengths_orig, self.targ, self.targpx, self.comp, self.comppx, self.wavelength_lims, masktarget=False, invvar=self.inputs.invvar) 
-        #self.targcomp_binned.bin_wavelengths_adjusted(bin_len)
-        #self.targcomp_binned.get_binned_lcs()
-
-        #self.keys = np.sort(self.targcomp_binned.binned_lcs_dict.keys())
-        #self.istarget = istarget

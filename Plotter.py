@@ -195,7 +195,7 @@ class Plotter(Talker):
         plt.title('rms vs binsize for wavelengths {0}'.format(self.wavefile))
         plt.legend(loc='best')
         plt.tight_layout()
-        plt.savefig(self.inputs.saveas+'_'+self.wavefile+'_figure_rmsbinsize.png')
+        plt.savefig(self.inputs.saveas+'_'+self.wavefile+'_figure_lmfitrmsbinsize.png')
         plt.clf()
         plt.close()
 
@@ -309,22 +309,8 @@ class Plotter(Talker):
         plt.title('rms vs binsize for wavelengths {0}'.format(self.wavefile))
         plt.legend(loc='best')
         plt.tight_layout()
-        plt.savefig(self.inputs.saveas+'_'+self.wavefile+'_figure_rmsbinsize.png')
+        plt.savefig(self.inputs.saveas+'_'+self.wavefile+'_figure_mcfitrmsbinsize.png')
         plt.clf()
         plt.close()
-
-###############################################################################
-# These next functions will be called by figures.py after detrender is finished
-###############################################################################
-
-    def multinightfigures(self):
-        subdirectories = os.listdir(self.directorypath)
-
-    def loadrun(directory, inputs, wavefile):
-        wavebin = np.load(directory+inputs.nightname+'_'+wavefile+'.npy')[()]
-        modelobj = ModelMaker(inputs, wavebin, wavebin['lmfit'])
-        model = modelobj.makemodel()
-        residuals = wavebin['lc'] - model
-        lcunc = (np.std(residuals))**2
 
 

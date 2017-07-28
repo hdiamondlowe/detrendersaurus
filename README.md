@@ -10,10 +10,10 @@ Eventually you should be able to go straight from mosasaurus to detrendersaurus 
 
 You can get started with this super rough version of detrendersaurus by 
 
-    1. downloading it 
+1. downloading it 
 
-    2. emailing me for an example data cube (it's large and I haven't bothered hosting it anywhere)
-    
-    3. looking over the files in the example directory
+2. emailing me for an example data cube (it's large and I haven't bothered hosting it anywhere)
+   
+3. looking over the files in the example directory
     
 Then, when you're ready, run detrend.py from within the examples directory. 

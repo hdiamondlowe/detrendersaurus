@@ -1,12 +1,15 @@
 import zachopy.Talker
+import zachopy.Writer
 Talker = zachopy.Talker.Talker
+Writer = zachopy.Writer.Writer
 from Inputs import Inputs
 from CubeReader import CubeReader
 from LCMaker import LCMaker
 from LMFitter import LMFitter
 from MCFitter import MCFitter
+import numpy as np
 
-class Detrender(Talker):
+class Detrender(Talker, Writer):
     '''Detrenders are objects for detrending data output by mosasaurus.'''
 
     def __init__(self, *directoryname):
@@ -45,15 +48,26 @@ class Detrender(Talker):
     
     def detrend(self):
         
-        self.speak('detrending data from night {1} in directory {1}'.format(
-                        self.inputs.nightname, self.directoryname))
+        self.speak('detrending data from night {0} in directory {1}'.format(self.inputs.nightname, self.directoryname))
 
-        for wavefile in self.lcs.wavebin.wavefiles:
+        for w, wavefile in enumerate(self.lcs.wavebin.wavefiles):
+            if self.inputs.fixedrp != False:
+                rpind = np.where(np.array(self.inputs.tranlabels) == 'rp')[0][0]
+                self.inputs.tranparams[rpind] = self.inputs.fixedrp[w]
+                Writer.__init__(self, self.inputs.saveas+'_'+wavefile+'.txt')
+                self.speak('lmfit will used a fixed rp/rs value of {0}'.format(self.inputs.tranparams[rpind]))
+                self.write('lmfit will used a fixed rp/rs value of {0}'.format(self.inputs.tranparams[rpind]))
             self.lmfit = LMFitter(self, wavefile)
 
         if self.inputs.domcmc:
             for wavefile in self.lcs.wavebin.wavefiles:
-               self.mcfit = MCFitter(self, wavefile)
+                if self.inputs.fixedrp != False:
+                    rpind = np.where(np.array(self.inputs.tranlabels) == 'rp')[0][0]
+                    self.inputs.tranparams[rpind] = self.inputs.fixedrp[w]
+                    Writer.__init__(self, self.inputs.saveas+'_'+wavefile+'.txt')
+                    self.speak('mcfit will used a fixed rp/rs value of {0}'.format(self.inputs.tranparams[rpind]))
+                    self.write('mcfit will used a fixed rp/rs value of {0}'.format(self.inputs.tranparams[rpind]))
+                self.mcfit = MCFitter(self, wavefile)
 
         self.speak('detrender done')
         self.speak('detrendersaurus has done all it can do for your data. goodbye.')

@@ -150,7 +150,6 @@ def transmission(flag='absolute', model=True, medavg=True):
                 model_wavelengths, model_depths, model_binned_wavelengths, model_binned_depths = np.array(m[0]), np.array(m[1]), np.array(m[2]), np.array(m[3])
                 plt.plot(model_wavelengths, model_depths*scale*100., color='k', alpha=0.5, linewidth=2, label=r'$100\%\ H_2/He$')
                 plt.plot(model_wavelengths, [.215 for i in model_wavelengths], color='k', ls='--', alpha=0.5, linewidth=2, label=r'$\mathrm{flat}$')
-                print 'got here'
                 #plt.plot(model_binned_wavelengths, model_binned_depths*scale*100., 'ks', alpha=0.75)
 
         if medavg:
@@ -174,6 +173,8 @@ def transmission(flag='absolute', model=True, medavg=True):
             alldepthunc = np.array(alldepthunc)
             weighteddepth = np.sum(alldepth/alldepthunc**2, 0)/np.sum(1./alldepthunc**2, 0)
             weighteddepthunc = np.sqrt(1./np.sum(1./alldepthunc**2, 0))
+            print 'inverse variance weighted depths:'
+            print weighteddepth
             try: plt.errorbar(xaxis, weighteddepth, yerr=weighteddepthunc, fmt='o', markersize=8, color='k', markeredgecolor='k', ecolor='k', elinewidth=2, capsize=0, alpha=0.9, label='weighted average')
             except(ValueError):
                 print 'check that all of your directories have the same number of wavelength bins!'
@@ -184,6 +185,7 @@ def transmission(flag='absolute', model=True, medavg=True):
         # calculate median transit depth across all wavelength bins, acros all nights
         allwavefiles = np.array([loldict[night]['wavefiles'] for night in nights])
         meddepth = np.median([[loldict[night][w]['depth'] for w in allwavefiles[n]] for n,night in enumerate(nights)])*100.
+        print 'median depth: ', meddepth
 
         if model:
             for m in modelspectra:
@@ -214,6 +216,8 @@ def transmission(flag='absolute', model=True, medavg=True):
             alldepthunc = np.array(alldepthunc)
             weighteddepth = np.sum(alldepth/alldepthunc**2, 0)/np.sum(1./alldepthunc**2, 0)
             weighteddepthunc = np.sqrt(1./np.sum(1./alldepthunc**2, 0))
+            print 'inverse variance weighted depths:'
+            print weighteddepth
             try: plt.errorbar(xaxis, weighteddepth/np.median(weighteddepth)*meddepth, yerr=weighteddepthunc/np.median(weighteddepth)*meddepth, fmt='o', markersize=8, color='k', markeredgecolor='k', ecolor='k', elinewidth=2, capsize=0, alpha=0.9, label='weighted average')
             except(ValueError):
                 print 'check that all of your directories have the same number of wavelength bins!'

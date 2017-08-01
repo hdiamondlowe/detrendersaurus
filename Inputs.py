@@ -127,6 +127,8 @@ class Inputs(Talker):
 
         self.tranlabels = dictionary['tranlabels']
         self.tranparams = [str_to_bool(i) for i in dictionary['tranparams']]
+        try: self.fixedrp = str_to_bool(dictionary['fixedrp'])
+        except(TypeError): self.fixedrp = [str_to_bool(i) for i in dictionary['fixedrp']]
         self.tranbounds = [[str_to_bool(i) for i in dictionary['tranbounds_low']], [str_to_bool(i) for i in dictionary['tranbounds_high']]]
         self.wavelength_lims = [float(i) for i in dictionary['wavelength_lims']]
         if len(self.tranbounds[0]) != len(self.tranlabels) or len(self.tranbounds[1]) != len(self.tranlabels):

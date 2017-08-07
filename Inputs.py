@@ -89,8 +89,9 @@ class Inputs(Talker):
                 return False
             else:
                 try: return float(s)
-                except(ValueError): return float(dictionary[s])
-                except(ValueError): return str(dictionary[s])
+                except(ValueError): 
+                    if s in dictionary.keys(): return float(dictionary[s])
+                    else: return str(s)
 
 
         self.filename = dictionary['filename']

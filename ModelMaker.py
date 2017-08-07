@@ -21,18 +21,18 @@ class ModelMaker(Talker):
         self.fitmodel = np.sum(x, 0) + 1
 
         tranvalues = {}
-        for t in range(len(self.inputs.tranlabels)):
-            if self.inputs.tranlabels[t] in self.inputs.paramlabels:
-                ind = np.where(np.array(self.inputs.paramlabels) == self.inputs.tranlabels[t])[0]
-                if self.inputs.tranlabels[t] == 'q0':
+        for t, tranlabel in enumerate(self.inputs.tranlabels):
+            if tranlabel in self.inputs.paramlabels:
+                ind = np.where(np.array(self.inputs.paramlabels) == tranlabel)[0]
+                if tranlabel == 'q0':
                     q0, q1 = paramvals[ind], paramvals[ind + 1]
                     tranvalues['u0'] = 2.*np.sqrt(q0)*q1
                     tranvalues['u1'] = np.sqrt(q0)*(1 - 2.*q1)
-                elif self.inputs.tranlabels[t] == 'q1': continue    
-                else: tranvalues[self.inputs.tranlabels[t]] = self.paramvals[int(ind)]
+                elif tranlabel == 'q1': continue    
+                else: tranvalues[tranlabel] = self.paramvals[int(ind)]
             else: 
-                tranvalues[self.inputs.tranlabels[t]] = self.inputs.tranparams[t]
-        
+                tranvalues[tranlabel] = self.inputs.tranparams[t]
+
         if self.inputs.istarget == True and self.inputs.isasymm == False:
             batman = BatmanLC(self.wavebin['compcube']['bjd']-self.inputs.toff, tranvalues['dt'], tranvalues['rp'], tranvalues['per'], tranvalues['b'], tranvalues['a'], tranvalues['ecc'], tranvalues['u0'], tranvalues['u1'])
             self.batmanmodel = batman.batman_model()

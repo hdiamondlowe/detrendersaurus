@@ -108,7 +108,7 @@ class LMFitter(Talker, Writer):
 
         if 'dt' in self.inputs.paramlabels:
             ind = int(np.where(np.array(self.inputs.paramlabels) == 'dt')[0])
-            self.inputs.t0 = (self.lmparams2[ind] + self.inputs.toff)[0]
+            self.inputs.t0 = self.lmparams2[ind] + self.inputs.toff
             self.speak('lmfit reseting t0 parameter, transit midpoint = {0}'.format(self.inputs.t0))
         self.write('lmfit transit midpoint: {0}'.format(self.inputs.t0))
 

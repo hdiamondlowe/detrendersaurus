@@ -110,7 +110,7 @@ class MCFitter(Talker, Writer):
 
         if 'dt' in self.inputs.paramlabels:
             ind = np.where(np.array(self.inputs.paramlabels) == 'dt')[0]
-            self.inputs.t0 = (self.mcmc_params[ind][0] + self.inputs.toff)[0]
+            self.inputs.t0 = (self.mcparams[ind][0] + self.inputs.toff)[0]
             self.speak('mcfit reseting t0 parameter, transit midpoint = {0}'.format(self.inputs.t0))
         self.write('mcfit transit midpoint: {0}'.format(self.inputs.t0))
 

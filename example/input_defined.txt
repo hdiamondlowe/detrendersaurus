@@ -18,6 +18,7 @@ t0               2457451.69997599  # transit midpoint of this particular transit
 tranlabels       dt rp per b a ecc u0 u1 # names of the transit parameters
                  # dt = difference between T0 + epochnum*P and the transit midpoint; rp = scaled planet radius (Rp/Rs); per = period; b = impact parameter; a = scaled semi-major axis; ecc = eccentricity; u0,u1 = limbdarkening coefficients for a quadratic limbdarkening fit
 tranparams       -0.00169841242745 0.0512 P b a ecc 0.5 0.5     # starting varlues for tranlabels
+fixedrp          False # this is where you can put in a series of rp values that will be fixed - number of values must be the same as the number of wavelength bins created
 tranbounds_low   False 0.025 False False False False False False  # lower bounds of tranparams; False = paramter is fixed to value, True = parameter will be given some upper bound that is 100*uncertainty derived from levenberg-marquartd fit; value = fixed bound to this value
 tranbounds_high  False True False False False False False False   # upper bounds of tranparams; False = paramter is fixed to value, True = parameter will be given some upper bound that is 100*uncertainty derived from levenberg-marquartd fit; value = fixed bound to this value
 wavelength_lims  7000 10300  # upper and lower limits of the overall wavelength range you want to look at (be careful, not all stars have data at certain wavelengths) in angstroms

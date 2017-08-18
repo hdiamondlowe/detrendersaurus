@@ -19,7 +19,6 @@ class Plotter(Talker):
         self.inputs = inputs
         self.cube = cube
 
-
     def shiftstretchplot(self):
 
         pngfiles = []

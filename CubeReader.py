@@ -82,7 +82,7 @@ class CubeReader(Talker):
         self.subcube['raw_counts'][self.inputs.target][self.inputs.targetpx] = self.raw_counts[self.inputs.target][self.inputs.targetpx]
         self.subcube['sky'][self.inputs.target][self.inputs.targetpx] = self.sky[self.inputs.target][self.inputs.targetpx]
         self.subcube['dcentroid'][self.inputs.target][self.inputs.targetpx] = self.dcentroid[self.inputs.target][self.inputs.targetpx]
-        self.subcube['dwidth'][self.inputs.target][self.inputs.targetpx] = self.peak[self.inputs.target][self.inputs.targetpx]
+        self.subcube['dwidth'][self.inputs.target][self.inputs.targetpx] = self.dwidth[self.inputs.target][self.inputs.targetpx]
         self.subcube['peak'][self.inputs.target][self.inputs.targetpx] = self.peak[self.inputs.target][self.inputs.targetpx]
         self.subcube['wavelengths'][self.inputs.target][self.inputs.targetpx] = self.wavelengths[self.inputs.target][self.inputs.targetpx]
         for i in range(len(self.inputs.comparison)):
@@ -93,7 +93,7 @@ class CubeReader(Talker):
             self.subcube['raw_counts'][self.inputs.comparison[i]][self.inputs.comparisonpx[i]] = self.raw_counts[self.inputs.comparison[i]][self.inputs.comparisonpx[i]]
             self.subcube['sky'][self.inputs.comparison[i]][self.inputs.comparisonpx[i]] = self.sky[self.inputs.comparison[i]][self.inputs.comparisonpx[i]]
             self.subcube['dcentroid'][self.inputs.comparison[i]][self.inputs.comparisonpx[i]] = self.dcentroid[self.inputs.comparison[i]][self.inputs.comparisonpx[i]]
-            self.subcube['dwidth'][self.inputs.comparison[i]][self.inputs.comparisonpx[i]] = self.peak[self.inputs.comparison[i]][self.inputs.comparisonpx[i]]
+            self.subcube['dwidth'][self.inputs.comparison[i]][self.inputs.comparisonpx[i]] = self.dwidth[self.inputs.comparison[i]][self.inputs.comparisonpx[i]]
             self.subcube['peak'][self.inputs.comparison[i]][self.inputs.comparisonpx[i]] = self.peak[self.inputs.comparison[i]][self.inputs.comparisonpx[i]]
             self.subcube['wavelengths'][self.inputs.comparison[i]][self.inputs.comparisonpx[i]] = self.wavelengths[self.inputs.comparison[i]][self.inputs.comparisonpx[i]]
 

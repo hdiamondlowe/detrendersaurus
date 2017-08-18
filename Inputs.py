@@ -18,7 +18,9 @@ class Inputs(Talker):
             self.speak('going into directory {0}'.format(directoryname[0]))
             self.directoryname = directoryname[0]
             self.readInputs()
-        else: self.createDirectory()
+        else: 
+            self.createDirectory()
+            self.readInputs()
 
     def createDirectory(self):
         ''' Create a new directory to put detrender stuff in'''
@@ -54,23 +56,21 @@ class Inputs(Talker):
 
         self.directoryname = directorypath+runpath
         self.saveas = self.directoryname+self.nightname
-        self.outfile = self.saveas+'_output_'
 
-        self.speak('copying "input.init" and starlist to the new directory')
-        copyfile('./input.init', self.directoryname+self.nightname+'_input.init')
-        copyfile('./'+self.starlist, self.directoryname+self.nightname+'_'+self.starlist)
-
-        self.readInputs()
+        self.speak('copying {0} and {1} to directory {2}'.format('input.init', self.starlist, self.directoryname))
+        copyfile('input.init', self.directoryname+self.nightname+'_input.init')
+        copyfile(self.starlist, self.directoryname+self.nightname+'_'+self.starlist)
+            
 
     def readInputs(self):
 
         for file in os.listdir(self.directoryname):
-            if file.endswith('input.init'):
-                inputfile = file
+            if file.endswith('_input.init'):
+                inputfilename = file
 
-        self.speak('trying to read {0} file from {1}'.format(inputfile, self.directoryname))
+        self.speak('reading {0} file from {1}'.format(inputfilename, self.directoryname))
 
-        file = open(self.directoryname+inputfile)
+        file = open(self.directoryname+inputfilename)
         lines = file.readlines()
         dictionary = {}
         for i in range(len(lines)):
@@ -97,10 +97,7 @@ class Inputs(Talker):
         self.filename = dictionary['filename']
         self.nightname = dictionary['nightname']
         self.saveas = self.directoryname+self.nightname
-        self.outfile = self.saveas+'_output_'
 
-        try: os.rename(self.directoryname+'input.init', self.saveas+'_input.init')
-        except(OSError): pass
 
         self.starlist = dictionary['starlist']
         star = Table.read(self.directoryname+self.nightname+'_'+self.starlist, format='ascii', delimiter='&')

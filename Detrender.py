@@ -59,7 +59,7 @@ class Detrender(Talker, Writer):
                 Writer.__init__(self, self.inputs.saveas+'_'+wavefile+'.txt')
                 self.speak('lmfit will used a fixed rp/rs value of {0}'.format(self.inputs.tranparams[rpind]))
                 self.write('lmfit will used a fixed rp/rs value of {0}'.format(self.inputs.tranparams[rpind]))
-            self.lmfit = LMFitter(self, wavefile, self.jointdirectories)
+            self.lmfit = LMFitter(self, wavefile)
 
         if self.inputs.domcmc:
             for wavefile in self.lcs.wavebin.wavefiles:

@@ -37,4 +37,4 @@ ldmodel          True
 domcmc           False
 
 mastern          0945
-starmasterstr    /h/mulan0/data/working/GJ1132b_ut160303_04/multipleapertures/aperture_588_1045/extracted
+starmasterstr    ./extracted

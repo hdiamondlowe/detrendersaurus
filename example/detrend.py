@@ -2,7 +2,7 @@
 
 
 import sys
-sys.path.append('../../detrendersaurus/')
+sys.path.append('../../detrendersaurus-master/')
 from Detrender import Detrender
 
 try:

@@ -2,8 +2,8 @@
 
 
 import sys
-sys.path.append('../detrendersaurus')
-from detrendersaurus.Detrender import Detrender
+sys.path.append('../../detrendersaurus/')
+from Detrender import Detrender
 
 try:
     d = Detrender(sys.argv[1])

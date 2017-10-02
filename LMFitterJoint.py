@@ -7,10 +7,11 @@ import lmfit
 import os
 from ldtk import LDPSetCreator, BoxcarFilter
 from ModelMaker import ModelMaker
-from CubeReader import CubeReader
+from ModelMakerJoint import ModelMakerJoint
 from Plotter import Plotter
+from PlotterJoint import PlotterJoint
 
-class LMFitter(Talker, Writer):
+class LMFitterJoint(Talker, Writer):
 
     '''this class will marginalize over the provided parameters using a levenberg-marquardt minimizer'''
 
@@ -50,42 +51,48 @@ class LMFitter(Talker, Writer):
 
         def lineareqn(params):
             paramvals = [params[name].value for name in self.inputs.freeparamnames]
-            model = ModelMaker(self.inputs, self.wavebin, paramvals)
+            model = ModelMakerJoint(self.inputs, self.wavebin, paramvals)
             return model.makemodel()
 
         def residuals1(params):
-            model = lineareqn(params)
-            residuals = (self.wavebin['lc'] - model)/self.wavebin['photnoiselim'] # weight by photon noise limit (expected noise)
-            return residuals
+            models = lineareqn(params)
+            residuals = []
+            for n, night in enumerate(self.inputs.nightname):
+                residuals.append((self.wavebin['lc'][n] - models[n])/self.wavebin['photnoiselim'][n]) # weight by photon noise limit (expected noise)
+            return np.hstack(residuals)
 
         self.linfit1 = lmfit.minimize(residuals1, lmfitparams)
         self.write('1st lm params:')
         [self.write('    '+name+'    '+str(self.linfit1.params[name].value)) for name in self.inputs.freeparamnames]
+        #[[self.write('    '+flabel+str(n)+'    '+str(self.linfit1.params[flabel+str(n)].value)) for flabel in self.inputs.fitlabels[n]] for n in range(len(self.inputs.nightname))]
+        #self.write('    '+tlabel+'    '+str(self.linfit1.params[tlabel].value)) for tlabel in self.freetranlabels]
 
 
         ######### do a second fit with priors, now that you know what the initial scatter is ########
         
         self.speak('running second lmfit after clipping >{0} sigma points'.format(self.inputs.sigclip))
  
-        # median absolute deviation sigma clipping to specified sigma value from inputs
+       # median absolute deviation sigma clipping to specified sigma value from inputs
         linfit1paramvals = [self.linfit1.params[name].value for name in self.inputs.freeparamnames]
-        modelobj = ModelMaker(self.inputs, self.wavebin, linfit1paramvals)
-        model = modelobj.makemodel()
-        resid = self.wavebin['lc'] - model
-        mad = np.median(abs(resid - np.median(resid)))
-        scale = 1.4826
-        data_unc = scale*mad               # scale x median absolute deviation
-        clip_inds = np.where((resid > (self.inputs.sigclip*data_unc)) | (resid < (-self.inputs.sigclip*data_unc)))[0]
-        clip_start = np.where(self.wavebin['binnedok'])[0][0]
-        self.wavebin['binnedok'][clip_start + clip_inds] = False
-        # need to update wavebin lc and compcube to reflect data clipping
-        newbinnedok = np.ones(self.wavebin['lc'].shape, dtype=bool)
-        newbinnedok[clip_inds] = False
-        self.wavebin['lc'] = self.wavebin['lc'][newbinnedok]
-        self.wavebin['compcube'] = self.cube.makeCompCube(self.wavebin['bininds'], self.wavebin['binnedok'])
-        self.write('clipped points: {0}'.format(clip_start+clip_inds))
-        np.save(self.inputs.saveas+'_'+self.wavefile, self.wavebin)
-        self.speak('remade lc and compcube for wavebin {0}'.format(self.wavefile))
+        modelobj = ModelMakerJoint(self.inputs, self.wavebin, linfit1paramvals)
+        models = modelobj.makemodel()
+        for n, night in enumerate(self.inputs.nightname):
+            resid = self.wavebin['lc'][n] - models[n]
+            mad = np.median(abs(resid - np.median(resid)))
+            scale = 1.4826
+            data_unc = scale*mad               # scale x median absolute deviation
+            clip_inds = np.where((resid > (self.inputs.sigclip*data_unc)) | (resid < (-self.inputs.sigclip*data_unc)))[0]
+            clip_start = np.where(self.wavebin['binnedok'][n])[0][0]
+            self.wavebin['binnedok'][n][clip_start + clip_inds] = False
+            # need to update wavebin lc and compcube to reflect data clipping
+            newbinnedok = np.ones(self.wavebin['lc'][n].shape, dtype=bool)
+            newbinnedok[clip_inds] = False
+            self.wavebin['lc'][n] = self.wavebin['lc'][n][newbinnedok]
+            self.wavebin['compcube'][n] = self.cube.makeCompCube(self.wavebin['bininds'][n], n, self.wavebin['binnedok'][n])
+            self.write('clipped points for {0}: {1}'.format(night, clip_start+clip_inds))
+            np.save(self.inputs.saveas+'_'+self.wavefile, self.wavebin)
+            self.speak('remade lc and compcube for {0} in wavebin {1}'.format(night, self.wavefile))
+
 
         lmfitparams = lmfit.Parameters()
         for n, name in enumerate(self.inputs.freeparamnames):
@@ -96,10 +103,13 @@ class LMFitter(Talker, Writer):
             else: maxbound = self.inputs.freeparambounds[1][n]
             lmfitparams[name].set(min=minbound, max=maxbound)
 
+
         def residuals2(params):
-            model = lineareqn(params)
-            residuals = (self.wavebin['lc'] - model)/self.wavebin['photnoiselim'] # weight by photon noise limit (expected noise)
-            return residuals
+            models = lineareqn(params)
+            residuals = []
+            for n, night in enumerate(self.inputs.nightname):
+                residuals.append((self.wavebin['lc'][n] - models[n])/self.wavebin['photnoiselim'][n]) # weight by photon noise limit (expected noise)
+            return np.hstack(residuals)
 
         self.linfit2 = lmfit.minimize(residuals2, lmfitparams)
         self.write('2nd lm params:')
@@ -121,15 +131,20 @@ class LMFitter(Talker, Writer):
             lmfitparams[name].set(min=minbound, max=maxbound)
 
         linfit2paramvals = [self.linfit2.params[name].value for name in self.inputs.freeparamnames]
-        modelobj = ModelMaker(self.inputs, self.wavebin, linfit2paramvals)
-        model = modelobj.makemodel()
-        resid = self.wavebin['lc'] - model
-        data_unc = np.var(resid)
+        modelobj = ModelMakerJoint(self.inputs, self.wavebin, linfit2paramvals)
+        models = modelobj.makemodel()
+        data_uncs = []
+        for n, night in enumerate(self.inputs.nightname):
+            resid = self.wavebin['lc'][n] - models[n]
+            data_unc = np.var(resid)
+            data_uncs.append(data_unc)
 
         def residuals3(params):
-            model = lineareqn(params)
-            residuals = (self.wavebin['lc'] - model)/data_unc # weight by calculated uncertainty
-            return residuals
+            models = lineareqn(params)
+            residuals = []
+            for n, night in enumerate(self.inputs.nightname):
+                residuals.append((self.wavebin['lc'][n] - models[n])/data_uncs[n]) # weight by calculated uncertainty
+            return np.hstack(residuals)
 
         self.linfit3 = lmfit.minimize(residuals3, lmfitparams)
         self.write('3rd lm params:')
@@ -137,29 +152,36 @@ class LMFitter(Talker, Writer):
         #[[self.write('    '+flabel+str(n)+'    '+str(self.linfit3.params[flabel+str(n)].value)) for flabel in self.inputs.fitlabels[n]] for n in range(len(self.inputs.nightname))]
         #[self.write('    '+tlabel+'    '+str(self.linfit3.params[tlabel].value)) for tlabel in self.freetranlabels]
 
-        if 'dt' in self.linfit3.params.keys():
-            self.inputs.t0 = self.linfit3.params['dt'] + self.inputs.toff
-            self.speak('lmfit reseting t0 parameter, midpoint = {0}'.format(self.inputs.t0))
-        self.write('lmfit transit midpoint: {0}'.format(self.inputs.t0))
+        for n, night in enumerate(self.inputs.nightname):
+            if 'dt'+str(n) in self.linfit3.params.keys():
+                self.inputs.t0 = self.linfit3.params['dt'+str(n)] + self.inputs.toff
+                self.speak('lmfit reseting t0 parameter for {0}, transit midpoint = {1}'.format(night, self.inputs.t0[n]))
+            self.write('lmfit transit midpoint for {0}: {1}'.format(night, self.inputs.t0[n]))
 
         linfit3paramvals = [self.linfit3.params[name].value for name in self.inputs.freeparamnames]
-        modelobj = ModelMaker(self.inputs, self.wavebin, linfit3paramvals)
-        model = modelobj.makemodel()
-        resid = self.wavebin['lc'] - model
-        data_unc = np.std(resid)
+        modelobj = ModelMakerJoint(self.inputs, self.wavebin, linfit3paramvals)
+        models = modelobj.makemodel()
+        resid = []
+        for n in range(len(self.inputs.nightname)):
+            resid.append(self.wavebin['lc'][n] - models[n])
+        allresid = np.hstack(resid)
+        data_unc = np.std(allresid)
         self.write('lmfit SDNR: '+str(data_unc))  # this is the same as the rms!
+        self.write('lmfit RMS: '+str(np.sqrt(np.sum(allresid**2)/len(allresid))))
 
         # how many times the expected noise is the rms?
-        self.write('x expected noise: {0}'.format(data_unc/self.wavebin['photnoiselim']))
+        for n, night in enumerate(self.inputs.nightname):
+            self.write('x expected noise for {0}: {1}'.format(night, data_unc/self.wavebin['photnoiselim'][n]))
 
         # make BIC calculations
         # var = np.power(data_unc, 2.)
         var = 4.5e-7    # variance must remain fixed across all trials in order to make a comparison of BIC values
-        lnlike = -0.5*np.sum((self.wavebin['lc'] - model)**2/var + np.log(2.*np.pi*var))
-        plbls = len(self.inputs.freeparamnames)
-        lnn = np.log(len(self.wavebin['lc']))
-        BIC = -2.*lnlike + plbls*lnn
-        self.write('BIC: {0}'.format(BIC))
+        for n, night in enumerate(self.inputs.nightname):
+            lnlike = -0.5*np.sum((self.wavebin['lc'][n] - models[n])**2/var + np.log(2.*np.pi*var))
+            plbls = len(np.where([k.endswith((str(0))) for k in self.linfit3.params.keys()])[0])
+            lnn = np.log(len(self.wavebin['lc'][n]))
+            BIC = -2.*lnlike + plbls*lnn
+            self.write('{0} BIC: {1}'.format(night, BIC))
 
         self.speak('saving lmfit to wavelength bin {0}'.format(self.wavefile))
         self.wavebin['lmfit'] = {}
@@ -173,7 +195,7 @@ class LMFitter(Talker, Writer):
             return
         np.save(self.inputs.saveas+'_'+self.wavefile, self.wavebin)
 
-        plot = Plotter(self.inputs, self.cube)
+        plot = PlotterJoint(self.inputs, self.cube)
         plot.lmplots(self.wavebin)
 
         self.speak('done with lmfit for wavelength bin {0}'.format(self.wavefile))
@@ -192,11 +214,13 @@ class LMFitter(Talker, Writer):
         self.u0, self.u1 = u[0][0], u[0][1]
         self.write('limb darkening params: '+str(self.u0)+'  '+str(self.u1))
 
-        if 'u0' in self.inputs.tranlabels:
-            self.inputs.tranparams[-2], self.inputs.tranparams[-1] = self.u0, self.u1
-        else:
-            self.inputs.tranlabels.append('u0')
-            self.inputs.tranparams.append(self.u0)
-            self.inputs.tranlabels.append('u1')
-            self.inputs.tranparams.append(self.u1)
+        for n in range(len(self.inputs.nightname)):
+            if 'u0' in self.inputs.tranlabels[n]:
+                self.inputs.tranparams[n][-2], self.inputs.tranparams[n][-1] = self.u0, self.u1
+            else:
+                # !Error! you also have to add to tranparambounds!
+                self.inputs.tranlabels[n].append('u0')
+                self.inputs.tranparams[n].append(self.u0)
+                self.inputs.tranlabels[n].append('u1')
+                self.inputs.tranparams[n].append(self.u1)
 

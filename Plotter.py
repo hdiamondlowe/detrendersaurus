@@ -6,6 +6,7 @@ from ModelMaker import ModelMaker
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 import corner
+from dynesty import plotting as dyplot
 
 class Plotter(Talker):
 
@@ -95,7 +96,7 @@ class Plotter(Talker):
 
         self.speak('making model to offset bjd times')
         #lcbinned = self.targcomp_binned.binned_lcs_dict[self.keys[k]]
-        modelobj = ModelMaker(self.inputs, self.wavebin, self.wavebin['lmfit'])
+        modelobj = ModelMaker(self.inputs, self.wavebin, self.wavebin['lmfit']['values'])
         model = modelobj.makemodel()
 
         self.speak('making normalized wavelength binned raw counts vs time for target and comparisons figure')
@@ -207,40 +208,58 @@ class Plotter(Talker):
 
         self.speak('making mcfit figures')
 
-        self.speak('making walkers vs steps figure')
-        paramuncs = np.sqrt(np.diagonal(self.wavebin['linfit'].covar))
-        trn_ind = len(self.inputs.tranparams)
-        fig, axes = plt.subplots(len(self.inputs.paramlabels), 1, sharex=True, figsize=(16, 12))
-        for i in range(len(self.inputs.paramlabels)):
-            axes[i].plot(self.wavebin['mcchain'][:, :, i].T, color="k", alpha=0.4)
-            axes[i].yaxis.set_major_locator(MaxNLocator(5))
-            axes[i].axhline(self.wavebin['mcfit'][i][0], color="#4682b4", lw=2)
-            if self.inputs.parambounds[0][i] == True:
-                axes[i].axhline(self.wavebin['mcfit'][i][0]-paramuncs[i], color="#4682b4", lw=2, ls='--')
-            else:
-                axes[i].axhline(self.inputs.parambounds[0][i], color="#4682b4", lw=2, ls='--')
-            if self.inputs.parambounds[1][i] == True:
-                axes[i].axhline(self.wavebin['mcfit'][i][0]+paramuncs[i], color="#4682b4", lw=2, ls='--')
-            else:
-                axes[i].axhline(self.inputs.parambounds[1][i], color="#4682b4", lw=2, ls='--')
-            axes[i].axvline(self.inputs.burnin, color='k', ls='--', lw=1, alpha=0.4)
-            axes[i].set_ylabel(self.inputs.paramlabels[i])
-            if i == len(self.inputs.paramlabels)-1: axes[i].set_xlabel("step number")
-        fig.tight_layout()
-        fig.subplots_adjust(hspace=0)
-        plt.savefig(self.inputs.saveas+'_'+self.wavefile+'_figure_mcmcchains.png')
-        plt.clf()
-        plt.close()
+        if self.inputs.mcmccode == 'emcee':
 
-        modelobj = ModelMaker(self.inputs, self.wavebin, self.wavebin['mcfit'][:,0])
+            self.speak('making walkers vs steps figure')
+            fig, axes = plt.subplots(len(self.inputs.freeparamnames), 1, sharex=True, figsize=(16, 12))
+            for i, name in enumerate(self.inputs.freeparamnames):
+                axes[i].plot(self.wavebin['mcfit']['chain'][:, :, i].T, color="k", alpha=0.4)
+                axes[i].yaxis.set_major_locator(MaxNLocator(5))
+                axes[i].axhline(self.wavebin['mcfit']['values'][i][0], color="#4682b4", lw=2)
+                if self.inputs.freeparambounds[0][i] == True:
+                    axes[i].axhline(self.wavebin['mcfit']['values'][i][0]-self.wavebin['lmfit']['uncs'][i], color="#4682b4", lw=2, ls='--')
+                else:
+                    axes[i].axhline(self.inputs.freeparambounds[0][i], color="#4682b4", lw=2, ls='--')
+                if self.inputs.freeparambounds[1][i] == True:
+                    axes[i].axhline(self.wavebin['mcfit']['values'][i][0]+self.wavebin['lmfit']['uncs'][i], color="#4682b4", lw=2, ls='--')
+                else:
+                    axes[i].axhline(self.inputs.freeparambounds[1][i], color="#4682b4", lw=2, ls='--')
+                axes[i].axvline(self.inputs.burnin, color='k', ls='--', lw=1, alpha=0.4)
+                axes[i].set_ylabel(self.inputs.freeparamnames[i])
+                if i == len(self.inputs.freeparamnames)-1: axes[i].set_xlabel("step number")
+            fig.tight_layout()
+            fig.subplots_adjust(hspace=0)
+            plt.savefig(self.inputs.saveas+'_'+self.wavefile+'_figure_mcmcchains.png')
+            plt.clf()
+            plt.close()
+
+            self.speak('making mcmc corner plot')
+            samples = self.wavebin['mcfit']['chain'][:,self.inputs.burnin:,:].reshape((-1, len(self.inputs.freeparamnames)))
+            fig = corner.corner(samples, labels=self.inputs.freeparamnames, truths=self.wavebin['lmfit']['values'])
+            plt.savefig(self.inputs.saveas+'_'+self.wavefile+'_figure_mcmccorner.png')
+            plt.clf()
+            plt.close()
+
+
+        elif self.inputs.mcmccode == 'dynesty':
+
+            truths = self.wavebin['lmfit']['values']
+
+            # trace plot
+            fig, axes = dyplot.traceplot(self.wavebin['mcfit']['results'], labels=self.inputs.freeparamlabels, truths=truths, fig=plt.subplots(3, 2, figsize=(16, 12)), trace_kwargs={'edgecolor': 'none'})
+            fig.tight_layout()
+            plt.savefig(self.inputs.saveas+'_'+self.wavefile+'_figure_mcmcchains.png')
+            plt.clf()
+            plt.close()
+
+            # corner plot
+            fig, axes = dyplot.cornerplot(self.wavebin['mcfit']['results'], labels=self.inputs.freeparamlabels, truths=truths, show_titles=True, title_kwargs={'y': 1.04}, fig=plt.subplots(len(self.inputs.freeparamnames), len(self.inputs.freeparamnames), figsize=(15, 15)))
+            plt.savefig(self.inputs.saveas+'_'+self.wavefile+'_figure_mcmccorner.png')
+            plt.clf()
+            plt.close()
+
+        modelobj = ModelMaker(self.inputs, self.wavebin, self.wavebin['mcfit']['values'][:,0])
         model = modelobj.makemodel()
-
-        self.speak('making mcmc corner plot')
-        samples = self.wavebin['mcchain'][:,self.inputs.burnin:,:].reshape((-1, len(self.inputs.paramlabels)))
-        fig = corner.corner(samples, labels=self.inputs.paramlabels, truths=self.wavebin['lmfit'])
-        plt.savefig(self.inputs.saveas+'_'+self.wavefile+'_figure_mcmccorner.png')
-        plt.clf()
-        plt.close()
 
         self.speak('making lightcurve and mcfit model vs time figure')
         plt.figure(figsize=(14,12))

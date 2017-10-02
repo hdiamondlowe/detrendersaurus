@@ -11,27 +11,22 @@ class ModelMaker(Talker):
 
         self.inputs = inputs
         self.wavebin = wavebin
-        self.paramvals = paramvals
+        self.params = paramvals
     
     def makemodel(self):
 
         x = []
-        for f in range(len(self.inputs.fitlabels)):
-            x.append(self.paramvals[f]*self.wavebin['compcube'][self.inputs.fitlabels[f]])
-        self.fitmodel = np.sum(x, 0) + 1
+        for flabel in self.inputs.fitlabels:
+            paramind = int(np.where(np.array(self.inputs.freeparamnames) == flabel)[0])
+            x.append(self.params[paramind]*self.wavebin['compcube'][flabel])
+            self.fitmodel = np.sum(x, 0) + 1
 
         tranvalues = {}
         for t, tranlabel in enumerate(self.inputs.tranlabels):
-            if tranlabel in self.inputs.paramlabels:
-                ind = np.where(np.array(self.inputs.paramlabels) == tranlabel)[0]
-                if tranlabel == 'q0':
-                    q0, q1 = paramvals[ind], paramvals[ind + 1]
-                    tranvalues['u0'] = 2.*np.sqrt(q0)*q1
-                    tranvalues['u1'] = np.sqrt(q0)*(1 - 2.*q1)
-                elif tranlabel == 'q1': continue    
-                else: tranvalues[tranlabel] = self.paramvals[int(ind)]
-            else: 
-                tranvalues[tranlabel] = self.inputs.tranparams[t]
+            if tranlabel in self.inputs.freeparamnames:
+                paramind = int(np.where(np.array(self.inputs.freeparamnames) == tranlabel)[0])
+                tranvalues[tranlabel] = self.params[paramind]
+            else: tranvalues[tranlabel] = self.inputs.tranparams[t]   
 
         if self.inputs.istarget == True and self.inputs.isasymm == False:
             batman = BatmanLC(self.wavebin['compcube']['bjd']-self.inputs.toff, tranvalues['dt'], tranvalues['rp'], tranvalues['per'], tranvalues['b'], tranvalues['a'], tranvalues['ecc'], tranvalues['u0'], tranvalues['u1'])

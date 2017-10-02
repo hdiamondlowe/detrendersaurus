@@ -53,6 +53,7 @@ class LCMaker(Talker, Writer):
                 bininds = self.wavebin.binindices[:,:,w] # shape = (numexps, numstars, numwave)
                 # create a dictionary for this wavelength bin
                 bin = {}
+                bin['freeparams'] = self.inputs.freeparamnames
                 bin['wavelims'] = self.wavebin.wavelims[w]
                 bin['bininds'] = bininds
                 bin['binnedok'] = np.array([b for b in self.cube.subcube['ok']])

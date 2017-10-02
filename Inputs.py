@@ -123,6 +123,7 @@ class Inputs(Talker):
         self.t0 = str_to_bool(dictionary['t0'])
         if type(self.t0) == bool: self.t0 = self.toff
 
+
         self.tranlabels = dictionary['tranlabels']
         self.tranparams = [str_to_bool(i) for i in dictionary['tranparams']]
         try: self.fixedrp = str_to_bool(dictionary['fixedrp'])
@@ -133,18 +134,28 @@ class Inputs(Talker):
             self.speak('oh no! incorrect number of bounds!')
             return
 
-        # making parambounds, paramlabels, paramvalues - these include both fitparams and tranparams that will be fitted for
-        self.parambounds = [[True for t in self.fitlabels],[True for t in self.fitlabels]]
-        self.paramlabels, self.paramvalues = [f for f in self.fitlabels], [1 for f in self.fitlabels]
-        for i in range(len(self.tranparams)):
-            if type(self.tranbounds[0][i]) != bool or self.tranbounds[0][i] == True:
-                self.paramlabels.append(self.tranlabels[i])
-                self.paramvalues.append(self.tranparams[i])
-                self.parambounds[0].append(self.tranbounds[0][i])
-                self.parambounds[1].append(self.tranbounds[1][i])
+        self.fitparams = [1 for f in self.fitlabels]
+
+        self.freeparambounds = [[], []]
+        self.freeparamnames = []
+        self.freeparamvalues = []
+        for f, flabel in enumerate(self.fitlabels):
+            self.freeparambounds[0].append(True)
+            self.freeparambounds[1].append(True)
+            self.freeparamnames.append(flabel)
+            self.freeparamvalues.append(self.fitparams[f])
+        for t, tlabel in enumerate(self.tranlabels):
+            if type(self.tranbounds[0][t]) == bool and self.tranbounds[0][t] == False: continue
+            if self.tranbounds[0][t] == 'Joint': continue
+            self.freeparambounds[0].append(self.tranbounds[0][t])
+            self.freeparambounds[1].append(self.tranbounds[1][t])
+            self.freeparamnames.append(tlabel)
+            self.freeparamvalues.append(self.tranparams[t])
 
         self.binlen = str_to_bool(dictionary['binlen'])
         self.sigclip = float(dictionary['sigclip'])
+
+        self.mcmccode = dictionary['mcmccode']
         self.nwalkers = int(dictionary['nwalkers'])
         self.nsteps = int(dictionary['nsteps'])
         self.burnin = int(dictionary['burnin'])

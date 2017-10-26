@@ -28,6 +28,7 @@ class LCMaker(Talker, Writer):
         self.speak('trimming excess baseline')
         outside_transit = np.where((self.cube.subcube['bjd'] < self.inputs.t0-(1.5*self.inputs.Tdur)) | (self.cube.subcube['bjd'] > self.inputs.t0+(1.5*self.inputs.Tdur)))
         # !!! may have issue here when changing the midpoint time; may need to reset self.ok to all True and then add in time clip
+        
         self.cube.subcube['ok'][outside_transit] = False
 
     def makeBinnedLCs(self):
@@ -63,7 +64,7 @@ class LCMaker(Talker, Writer):
                 raw_counts_targ = raw_counts_targ/np.mean(raw_counts_targ)
                 raw_counts_comps = np.sum(np.sum([self.cube.subcube['raw_counts'][self.inputs.comparison[i]][self.inputs.comparisonpx[i]] * bininds[:, i+1] for i in range(len(self.inputs.comparison))], 0), 1)
                 raw_counts_comps = raw_counts_comps/np.mean(raw_counts_comps)
-                bin['lc'] = (raw_counts_targ/np.mean(raw_counts_targ))[self.cube.subcube['ok']]/(raw_counts_comps/np.mean(raw_counts_comps))[self.cube.subcube['ok']]
+                bin['lc'] = raw_counts_targ[self.cube.subcube['ok']]/(raw_counts_comps[self.cube.subcube['ok']])
 
                 # make a compcube that will be used for detrending
                 bin['compcube'] = self.cube.makeCompCube(bininds)
@@ -75,14 +76,15 @@ class LCMaker(Talker, Writer):
                 skyT = np.array(np.sum(self.cube.subcube['sky'][self.inputs.target][self.inputs.targetpx] * bininds[:,0], 1)[self.cube.subcube['ok']])
                 raw_countsC = np.sum(np.array([np.sum(self.cube.subcube['raw_counts'][self.inputs.comparison[i]][self.inputs.comparisonpx[i]] * bininds[:,i+1], 1)[self.cube.subcube['ok']] for i in range(len(self.inputs.comparison))]), 0)
                 skyC = np.sum(np.array([np.sum(self.cube.subcube['sky'][self.inputs.comparison[i]][self.inputs.comparisonpx[i]] * bininds[:,i+1], 1)[self.cube.subcube['ok']] for i in range(len(self.inputs.comparison))]), 0)
-                sigmaT = np.mean(np.sqrt(raw_countsT+skyT)/raw_countsT)
-                sigmaC = np.mean(np.sqrt(raw_countsC+skyC)/raw_countsC)
+                sigmaT = np.sqrt(raw_countsT+skyT)/raw_countsT
+                sigmaC = np.sqrt(raw_countsC+skyC)/raw_countsC
                 sigmaF = np.sqrt(sigmaT**2 + sigmaC**2)
 
                 # initiating writer for this particular wavelength bin output text file
                 Writer.__init__(self, self.inputs.saveas+'_'+wavefile+'.txt')
 
                 # write a bunch of stuff that you may want easy access too (without loading in the .npy file)
+                self.write('filename:' + self.inputs.filename)
                 self.write('output file for wavelength bin '+wavefile)
                 if self.inputs.istarget == False: self.write('istarget = false. batman transit model will not be used!')
                 self.write('starlist file: '+self.inputs.starlist)
@@ -90,10 +92,11 @@ class LCMaker(Talker, Writer):
                 self.write('targetpx: '+self.inputs.targetpx)
                 self.write('comparison: '+str(self.inputs.comparison))
                 self.write('comparisonpx: '+str(self.inputs.comparisonpx))
-                self.write('photon noise limits:')
+                self.write('mean photon noise limits:')
                 self.write('    target               comparison           T/C')
-                self.write('    '+str(sigmaT)+'    '+str(sigmaC)+'    '+str(sigmaF))
+                self.write('    '+str(np.mean(sigmaT))+'    '+str(np.mean(sigmaC))+'    '+str(np.mean(sigmaF)))
                 if self.inputs.optext: self.write('using optimally extracted spectra')
+                if self.inputs.polyfit: self.write('poly labels: '+str(self.inputs.polylabels))
                 self.write('fit labels: '+str(self.inputs.fitlabels))
                 self.write('combining comparisons using:')
                 if self.inputs.invvar: self.write('    inverse variance')
@@ -103,7 +106,7 @@ class LCMaker(Talker, Writer):
                 self.write('tran bounds: '+str(self.inputs.tranbounds[0])+'\n             '+str(self.inputs.tranbounds[1]))
 
                 # save the expected photon noise limit for the target/comparisons lightcurve
-                bin['photnoiselim'] = sigmaF
+                bin['photnoiseest'] = sigmaF
 
                 np.save(self.inputs.saveas+'_'+wavefile, bin)
                 self.speak('saved dictionary for wavelength bin {0}'.format(wavefile))

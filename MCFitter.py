@@ -6,6 +6,8 @@ import numpy as np
 import os
 import emcee
 import dynesty
+from dynesty.dynamicsampler import stopping_function, weight_function
+from dynesty.plotting import _quantile
 import sys
 from ldtk import LDPSetCreator, BoxcarFilter
 from emcee.utils import MPIPool
@@ -47,8 +49,8 @@ class MCFitter(Talker, Writer):
         self.mcmcbounds[1] = [i for i in self.inputs.freeparambounds[1]]
 
         for u in range(len(self.inputs.freeparamnames)):
-            if type(self.mcmcbounds[0][u]) == bool and self.mcmcbounds[0][u] == True: self.mcmcbounds[0][u] = self.wavebin['lmfit']['values'][u]-self.wavebin['lmfit']['uncs'][u]*10.
-            if type(self.mcmcbounds[1][u]) == bool and self.mcmcbounds[1][u] == True: self.mcmcbounds[1][u] = self.wavebin['lmfit']['values'][u]+self.wavebin['lmfit']['uncs'][u]*10.
+            if type(self.mcmcbounds[0][u]) == bool and self.mcmcbounds[0][u] == True: self.mcmcbounds[0][u] = self.wavebin['lmfit']['values'][u]-self.wavebin['lmfit']['uncs'][u]*25.
+            if type(self.mcmcbounds[1][u]) == bool and self.mcmcbounds[1][u] == True: self.mcmcbounds[1][u] = self.wavebin['lmfit']['values'][u]+self.wavebin['lmfit']['uncs'][u]*25.
         self.write('lower and upper bounds for mcmc walkers:')
         for b, name in enumerate(self.inputs.freeparamnames):
             self.write('    '+name + '    '+str(self.mcmcbounds[0][b])+'    '+str(self.mcmcbounds[1][b]))
@@ -131,6 +133,12 @@ class MCFitter(Talker, Writer):
         if self.inputs.ldmodel:
             self.limbdarkparams(self.wavebin['wavelims'][0]/10., self.wavebin['wavelims'][1]/10.)
 
+        # add the 's' scaling parameter into the fit
+        self.inputs.freeparamnames.append('s')
+        self.inputs.freeparamvalues.append(1)
+        self.inputs.freeparambounds[0].append(0.01)
+        self.inputs.freeparambounds[1].append(10.)
+
         self.mcmcbounds = [[],[]]
         self.mcmcbounds[0] = [i for i in self.inputs.freeparambounds[0]]
         self.mcmcbounds[1] = [i for i in self.inputs.freeparambounds[1]]
@@ -142,12 +150,18 @@ class MCFitter(Talker, Writer):
         for b, name in enumerate(self.inputs.freeparamnames):
             self.write('    '+name + '    '+str(self.mcmcbounds[0][b])+'    '+str(self.mcmcbounds[1][b]))
 
-        #this is a hack to try to make emcee picklable, not sure this helps at all...
+        # rescaling uncertainties as a free parameter during the fit (Berta, et al. 2011, references therein)
         def lnlike(p):
             modelobj = ModelMaker(self.inputs, self.wavebin, p)
             model = modelobj.makemodel()
-            data_unc = (np.std(self.wavebin['lc'] - model))**2
-            return -0.5*np.sum((self.wavebin['lc'] - model)**2/data_unc + np.log(2.*np.pi*data_unc))
+
+            # p[sind] is an 's' parameter; if the uncertainties do not need to be re-scaled then s = 1
+            # there is a single 's' parameter for each night's fit - helpful if a dataset is far from the photon noise
+            sind = int(np.where(np.array(self.inputs.freeparamnames) == 's')[0])
+            penaltyterm = -len(self.wavebin['photnoiseest']) * np.log(p[sind])
+            chi2 = ((self.wavebin['lc'] - model)/self.wavebin['photnoiseest'])**2
+            logl = penaltyterm - 0.5*(1./(p[sind]**2))*np.sum(chi2)
+            return logl
 
         def ptform(p):
             x = np.array(p)
@@ -159,40 +173,10 @@ class MCFitter(Talker, Writer):
         ndim = len(self.inputs.freeparamnames)
 
         self.dsampler = dynesty.DynamicNestedSampler(lnlike, ptform, ndim=ndim, bound='multi', sample='slice')
-        self.dsampler.run_nested()
+        self.dsampler.run_nested(wt_kwargs={'pfrac': 1.0})
 
         quantiles = [_quantile(self.dsampler.results['samples'][:,i], [.16, .5, .84], weights=np.exp(self.dsampler.results['logwt'] - self.dsampler.results['logwt'][-1])) for i in range(len(self.inputs.freeparamnames))]
         self.mcparams = np.array(map(lambda v: (v[1], v[2]-v[1], v[1]-v[0]), quantiles))
-
-        #self.write('mcmc acceptance: '+str(np.median(self.sampler.acceptance_fraction)))
-
-        self.write('mcmc params:')
-        self.write('     parameter        value                  plus                  minus')
-        [self.write('     '+self.inputs.freeparamnames[i]+'     '+str(self.mcparams[i][0])+'     '+str(self.mcparams[i][1])+'     '+str(self.mcparams[i][2])) for i in range(len(self.inputs.freeparamnames))]
-
-        if 'dt' in self.inputs.freeparamnames:
-            ind = int(np.where(np.array(self.inputs.freeparamnames) == 'dt'+str(n))[0])
-            self.inputs.t0 = self.mcparams[ind] + self.inputs.toff
-            self.speak('mcfit reseting t0, transit midpoint = {0}'.format(self.inputs.t0))
-        self.write('mcfit transit midpoint: {0}'.format(self.inputs.t0))
-
-        #calculate rms from mcfit
-        modelobj = ModelMakerJoint(self.inputs, self.wavebin, self.mcparams[:,0])
-        models = modelobj.makemodel()
-        resid = []
-        for n in range(len(self.inputs.nightname)):
-            resid.append(self.wavebin['lc'][n] - models[n])
-        allresid = np.hstack(resid)
-        data_unc = np.std(allresid)
-        self.write('mcfit RMS: '+str(np.sqrt(np.sum(allresid**2)/len(allresid))))
-
-        # how many times the expected noise is the rms?
-        totphotnoise = []
-        for n, night in enumerate(self.inputs.nightname):
-            totphotnoise.append(self.wavebin['photnoiselim'][n]**2)
-        totphotnoise = np.sqrt(np.sum(totphotnoise))
-        self.write('total expected noise: {0}'.format(totphotnoise))
-        self.write('x total expected noise: {0}'.format(data_unc/totphotnoise))
 
         self.speak('saving mcfit to wavelength bin {0}'.format(self.wavefile))
         self.wavebin['mcfit'] = {}
@@ -200,7 +184,27 @@ class MCFitter(Talker, Writer):
         self.wavebin['mcfit']['values'] = self.mcparams
         np.save(self.inputs.saveas+'_'+self.wavefile, self.wavebin)
 
-        plot = PlotterJoint(self.inputs, self.cube)
+        self.write('mcmc params:')
+        self.write('     parameter        value                  plus                  minus')
+        [self.write('     '+self.inputs.freeparamnames[i]+'     '+str(self.mcparams[i][0])+'     '+str(self.mcparams[i][1])+'     '+str(self.mcparams[i][2])) for i in range(len(self.inputs.freeparamnames))]
+
+        if 'dt' in self.inputs.freeparamnames:
+            ind = int(np.where(np.array(self.inputs.freeparamnames) == 'dt')[0])
+            self.inputs.t0 = self.mcparams[ind] + self.inputs.toff
+            self.speak('mcfit reseting t0, transit midpoint = {0}'.format(self.inputs.t0))
+        self.write('mcfit transit midpoint: {0}'.format(self.inputs.t0))
+
+        #calculate rms from mcfit
+        modelobj = ModelMaker(self.inputs, self.wavebin, self.mcparams[:,0])
+        model = modelobj.makemodel()
+        resid = self.wavebin['lc'] - model
+        data_unc = np.std(resid)
+        self.write('mcfit RMS: '+str(data_unc))
+
+        # how many times the expected noise is the rms?
+        self.write('x total expected noise: {0}'.format(data_unc/np.mean(self.wavebin['photnoiseest'])))
+
+        plot = Plotter(self.inputs, self.cube)
         plot.mcplots(self.wavebin)
 
         self.speak('done with mcfit for wavelength bin {0}'.format(self.wavefile))

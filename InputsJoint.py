@@ -140,20 +140,16 @@ class InputsJoint(Talker):
             self.T0 = float(dictionary['T0'])
             self.P = float(dictionary['P'])
             self.Tdur = float(dictionary['Tdur'])
-            self.b = float(dictionary['b'])
+            self.inc = float(dictionary['inc'])
             self.a = float(dictionary['a'])
             self.ecc = float(dictionary['ecc'])
             self.epochnum = [int(dictionary['epochnum'])]
             self.toff = [self.T0 + self.P*self.epochnum[self.n]]
-            self.t0 = [str_to_bool(dictionary['t0'])]
-            if type(self.t0) == bool: self.t0 = [self.toff]
 
         else:
             self.fitlabels.append(dictionary['fitlabels'])
             self.epochnum.append(int(dictionary['epochnum']))
             self.toff.append(self.T0 + self.P*self.epochnum[self.n])
-            self.t0.append(str_to_bool(dictionary['t0']))
-            if type(self.t0[-1]) == bool: self.t0[-1] = [self.toff]
 
         if self.n == 0:
             self.tranlabels = [dictionary['tranlabels']]
@@ -184,6 +180,9 @@ class InputsJoint(Talker):
                 self.freeparamnames.append(tlabel+str(self.n))
                 self.freeparamvalues.append(self.tranparams[self.n][t])
 
+            dtind = int(np.where(np.array(self.tranlabels[self.n]) == 'dt')[0])
+            self.t0 = [self.toff[self.n] + self.tranparams[self.n][dtind]]
+
         else:
             self.tranlabels.append(dictionary['tranlabels'])
             self.tranparams.append([str_to_bool(i) for i in dictionary['tranparams']])
@@ -203,15 +202,22 @@ class InputsJoint(Talker):
                 self.freeparambounds[1].append(self.tranbounds[self.n][1][t])
                 self.freeparamnames.append(tlabel+str(self.n))
                 self.freeparamvalues.append(self.tranparams[self.n][t])
+
+            dtind = int(np.where(np.array(self.tranlabels[self.n]) == 'dt')[0])
+            self.t0.append(self.toff[self.n] + self.tranparams[self.n][dtind])
         
         if self.n == 0:
             self.binlen = str_to_bool(dictionary['binlen'])
             self.sigclip = float(dictionary['sigclip'])
 
             self.mcmccode = dictionary['mcmccode']
-            self.nwalkers = int(dictionary['nwalkers'])
-            self.nsteps = int(dictionary['nsteps'])
-            self.burnin = int(dictionary['burnin'])
+            
+            if self.mcmccode == 'dynesty': pass
+                
+            elif self.mcmccode == 'emcee':
+                self.nwalkers = int(dictionary['nwalkers'])
+                self.nsteps = int(dictionary['nsteps'])
+                self.burnin = int(dictionary['burnin'])
 
             self.optext = str_to_bool(dictionary['optext'])
             self.istarget = str_to_bool(dictionary['istarget'])

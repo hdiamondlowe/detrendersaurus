@@ -32,6 +32,13 @@ class Plotter(Talker):
             self.speak('strech and shift figure already exists in the detrender directory')
             return
 
+        if 'dt' in self.inputs.freeparamnames:
+            dtind = int(np.where(np.array(self.inputs.freeparamnames) == 'dt')[0])
+            t0 = self.inputs.toff + self.wavebin['mcfit']['values'][dtind][0]
+        else:
+            dtind = int(np.where(np.array(self.inputs.tranlabels) == 'dt')[0])
+            t0 = self.inputs.toff + self.inputs.tranparams[dtind]
+
         self.speak('making stretch and shift figure')
         plt.figure(figsize=(16,12))
         gs = plt.matplotlib.gridspec.GridSpec(1, 2, hspace=0.16, wspace=0.02, left=0.05,right=0.99, bottom=0.05, top=0.94)
@@ -49,8 +56,8 @@ class Plotter(Talker):
                 fitplots[i][0].plot(params[i][stars[j]][pxs[j]], range(len(self.cube.subcube['bjd'])), lw=2, alpha=0.5, color=colors[j], label=str(stars[j]))
                 fitplots[i][0].plot(params[i][stars[j]][pxs[j]], range(len(self.cube.subcube['bjd'])), 'o', alpha=0.5, color=colors[j])
 
-                fitplots[i][0].axhline(np.where(self.cube.subcube['bjd'] > self.inputs.t0-(1.5*self.inputs.Tdur))[0][0], color='k', ls='-.', alpha = 0.5)
-                fitplots[i][0].axhline(np.where(self.cube.subcube['bjd'] < self.inputs.t0+(1.5*self.inputs.Tdur))[0][-1], color='k', ls='-.', alpha = 0.5)
+                fitplots[i][0].axhline(np.where(self.cube.subcube['bjd'] > t0-(1.5*self.inputs.Tdur))[0][0], color='k', ls='-.', alpha = 0.5)
+                fitplots[i][0].axhline(np.where(self.cube.subcube['bjd'] < t0+(1.5*self.inputs.Tdur))[0][-1], color='k', ls='-.', alpha = 0.5)
 
                 #plt.xlim(-2, 2)
                 plt.ylim(0, len(self.cube.subcube['bjd'])-1)
@@ -68,7 +75,7 @@ class Plotter(Talker):
         plt.clf()
         plt.close()
 
-    def lmplots(self, wavebin):
+    def lmplots(self, wavebin, linfits):
 
         self.wavebin = wavebin
         self.wavefile = str(self.wavebin['wavelims'][0])+'-'+str(self.wavebin['wavelims'][1])
@@ -99,15 +106,22 @@ class Plotter(Talker):
         modelobj = ModelMaker(self.inputs, self.wavebin, self.wavebin['lmfit']['values'])
         model = modelobj.makemodel()
 
+        if 'dt' in self.inputs.freeparamnames:
+            dtind = int(np.where(np.array(self.inputs.freeparamnames) == 'dt')[0])
+            t0 = self.inputs.toff + self.wavebin['lmfit']['values'][dtind]
+        else:
+            dtind = int(np.where(np.array(self.inputs.tranlabels) == 'dt')[0])
+            t0 = self.inputs.toff + self.inputs.tranparams[dtind]
+
         self.speak('making normalized wavelength binned raw counts vs time for target and comparisons figure')
         binnedtarg = np.sum(self.cube.subcube['raw_counts'][self.inputs.target][self.inputs.targetpx] * self.wavebin['bininds'][:,0], 1)[self.wavebin['binnedok']]
         binnedcomp = np.array([np.sum(self.cube.subcube['raw_counts'][self.inputs.comparison[i]][self.inputs.comparisonpx[i]] * self.wavebin['bininds'][:,i+1], 1)[self.wavebin['binnedok']] for i in range(len(self.inputs.comparison))])
         plt.figure()
-        plt.plot(self.cube.subcube['bjd'][self.wavebin['binnedok']]-self.inputs.t0, binnedtarg/np.median(binnedtarg), '.', alpha=0.5, label=self.inputs.target)
+        plt.plot(self.cube.subcube['bjd'][self.wavebin['binnedok']]-t0, binnedtarg/np.median(binnedtarg), '.', alpha=0.5, label=self.inputs.target)
         for i,c in enumerate(binnedcomp):
-            plt.plot(self.cube.subcube['bjd'][self.wavebin['binnedok']]-self.inputs.t0, c/np.median(c), '.', alpha=0.5, label=self.inputs.comparison[i])
+            plt.plot(self.cube.subcube['bjd'][self.wavebin['binnedok']]-t0, c/np.median(c), '.', alpha=0.5, label=self.inputs.comparison[i])
         plt.legend(loc='best')
-        plt.xlabel('bjd', fontsize=20)
+        plt.xlabel('bjd-'+str(t0), fontsize=20)
         plt.ylabel('normalized flux', fontsize=20)
         plt.tight_layout()
         plt.title(self.inputs.nightname+', '+self.wavefile+' angstroms')
@@ -118,10 +132,10 @@ class Plotter(Talker):
         self.speak('making normalized wavelength binned raw counts vs time for target and supercomparison figure')
         plt.figure()
         binnedsupercomp = np.sum(binnedcomp, 0)
-        plt.plot(self.cube.subcube['bjd'][self.wavebin['binnedok']]-self.inputs.t0, binnedtarg/np.median(binnedtarg), '.', alpha=0.5, label='targ')
-        plt.plot(self.cube.subcube['bjd'][self.wavebin['binnedok']]-self.inputs.t0, binnedsupercomp/np.median(binnedsupercomp), '.', alpha=0.5, label='supercomp')
+        plt.plot(self.cube.subcube['bjd'][self.wavebin['binnedok']]-t0, binnedtarg/np.median(binnedtarg), '.', alpha=0.5, label='targ')
+        plt.plot(self.cube.subcube['bjd'][self.wavebin['binnedok']]-t0, binnedsupercomp/np.median(binnedsupercomp), '.', alpha=0.5, label='supercomp')
         plt.legend(loc='best')
-        plt.xlabel('bjd', fontsize=20)
+        plt.xlabel('bjd-'+str(t0), fontsize=20)
         plt.ylabel('normalized nlux', fontsize=20)
         plt.title(self.inputs.nightname+', '+self.wavefile+' angstroms')
         plt.tight_layout()
@@ -136,12 +150,12 @@ class Plotter(Talker):
         lcplots.setdefault('lcplusmodel', []).append(plt.subplot(gs[0:2,0]))
         lcplots.setdefault('residuals', []).append(plt.subplot(gs[2,0]))
 
-        lcplots['lcplusmodel'][0].plot(self.cube.subcube['bjd'][self.wavebin['binnedok']]-self.inputs.t0, self.wavebin['lc'], 'k.', alpha=0.7)
-        lcplots['lcplusmodel'][0].plot(self.cube.subcube['bjd'][self.wavebin['binnedok']]-self.inputs.t0, model, 'bo', alpha=0.5)
+        lcplots['lcplusmodel'][0].plot(self.cube.subcube['bjd'][self.wavebin['binnedok']]-t0, self.wavebin['lc'], 'k.', alpha=0.7)
+        lcplots['lcplusmodel'][0].plot(self.cube.subcube['bjd'][self.wavebin['binnedok']]-t0, model, 'bo', alpha=0.5)
         lcplots['lcplusmodel'][0].set_ylabel('lightcurve + model', fontsize=20)
 
-        lcplots['residuals'][0].plot(self.cube.subcube['bjd'][self.wavebin['binnedok']]-self.inputs.t0, self.wavebin['lc']-model, 'k.', alpha=0.7)
-        lcplots['residuals'][0].set_xlabel('bjd-'+str(self.inputs.t0), fontsize=20)
+        lcplots['residuals'][0].plot(self.cube.subcube['bjd'][self.wavebin['binnedok']]-t0, self.wavebin['lc']-model, 'k.', alpha=0.7)
+        lcplots['residuals'][0].set_xlabel('bjd-'+str(t0), fontsize=20)
         lcplots['residuals'][0].set_ylabel('residuals', fontsize=20)
 
         plt.suptitle(self.inputs.nightname+' lightcurve plus lmfit model, '+self.wavefile+' angstroms')
@@ -151,9 +165,9 @@ class Plotter(Talker):
 
         self.speak('making lmfit detrended lightcurve with batman model vs time figure')
         plt.figure()
-        plt.plot(self.cube.subcube['bjd'][self.wavebin['binnedok']]-self.inputs.t0, self.wavebin['lc']/modelobj.fitmodel, 'ko', alpha=0.5)
-        plt.plot(self.cube.subcube['bjd'][self.wavebin['binnedok']]-self.inputs.t0, modelobj.batmanmodel, color="#4682b4", lw=2)
-        plt.xlabel('bjd-'+str(self.inputs.t0), fontsize=20)
+        plt.plot(self.cube.subcube['bjd'][self.wavebin['binnedok']]-t0, self.wavebin['lc']/modelobj.fitmodel, 'ko', alpha=0.5)
+        plt.plot(self.cube.subcube['bjd'][self.wavebin['binnedok']]-t0, modelobj.batmanmodel, color="#4682b4", lw=2)
+        plt.xlabel('bjd-'+str(t0), fontsize=20)
         plt.ylabel('normalized flux', fontsize=20)
         plt.title('lmfit for '+self.inputs.nightname+', '+self.wavefile+' angstroms', fontsize=20)
         plt.tight_layout()
@@ -161,8 +175,8 @@ class Plotter(Talker):
         plt.clf()
         plt.close()
 
-        print('making rms vs binsize figure after lmfit')
-        time = self.wavebin['compcube']['bjd'] - self.inputs.t0     # days
+        self.speak('making rms vs binsize figure after lmfit')
+        time = self.wavebin['compcube']['bjd'] - t0     # days
         time = time*24.*60.                                         # time now in minutes
         sigma_resid = np.std(self.wavebin['lc']-model)
         numbins = 1
@@ -196,6 +210,16 @@ class Plotter(Talker):
         plt.legend(loc='best')
         plt.tight_layout()
         plt.savefig(self.inputs.saveas+'_'+self.wavefile+'_figure_lmfitrmsbinsize.png')
+        plt.clf()
+        plt.close()
+
+        self.speak('making lmfit residuals plot for each lmfit call')
+        for i, linfit in enumerate(linfits):
+            plt.plot(range(len(linfit.residual)), linfit.residual, '.', alpha=.6, label='linfit'+str(i)+', chi2 = '+str(linfit.chisqr))
+        plt.xlabel('data number')
+        plt.ylabel('residuals')
+        plt.legend(loc='best')
+        plt.savefig(self.inputs.saveas+'_'+self.wavefile+'_linfit_residuals.png')
         plt.clf()
         plt.close()
 
@@ -244,19 +268,30 @@ class Plotter(Talker):
         elif self.inputs.mcmccode == 'dynesty':
 
             truths = self.wavebin['lmfit']['values']
+            truths.append(1)
+
+            if 's' not in self.inputs.freeparamnames: self.inputs.freeparamnames.append('s')
 
             # trace plot
-            fig, axes = dyplot.traceplot(self.wavebin['mcfit']['results'], labels=self.inputs.freeparamlabels, truths=truths, fig=plt.subplots(3, 2, figsize=(16, 12)), trace_kwargs={'edgecolor': 'none'})
-            fig.tight_layout()
+            self.speak('making dynesty trace plot')
+            fig, axes = dyplot.traceplot(self.wavebin['mcfit']['results'], labels=self.inputs.freeparamnames, post_color='royalblue', truths=truths, truth_color='firebrick', truth_kwargs={'alpha': 0.8}, fig=plt.subplots(len(self.inputs.freeparamnames), 2, figsize=(12, 30)), trace_kwargs={'edgecolor':'none'})
             plt.savefig(self.inputs.saveas+'_'+self.wavefile+'_figure_mcmcchains.png')
             plt.clf()
             plt.close()
 
             # corner plot
-            fig, axes = dyplot.cornerplot(self.wavebin['mcfit']['results'], labels=self.inputs.freeparamlabels, truths=truths, show_titles=True, title_kwargs={'y': 1.04}, fig=plt.subplots(len(self.inputs.freeparamnames), len(self.inputs.freeparamnames), figsize=(15, 15)))
+            self.speak('making dynesty corner plot')
+            fig, axes = dyplot.cornerplot(self.wavebin['mcfit']['results'], labels=self.inputs.freeparamnames, color='royalblue', truths=truths, truth_color='firebrick', show_titles=True, title_kwargs={'y': 1.04}, fig=plt.subplots(len(self.inputs.freeparamnames), len(self.inputs.freeparamnames), figsize=(15, 15)))
             plt.savefig(self.inputs.saveas+'_'+self.wavefile+'_figure_mcmccorner.png')
             plt.clf()
             plt.close()
+
+        if 'dt' in self.inputs.freeparamnames:
+            dtind = int(np.where(np.array(self.inputs.freeparamnames) == 'dt')[0])
+            t0 = self.inputs.toff + self.wavebin['mcfit']['values'][dtind][0]
+        else:
+            dtind = int(np.where(np.array(self.inputs.tranlabels) == 'dt')[0])
+            t0 = self.inputs.toff + self.inputs.tranparams[dtind]
 
         modelobj = ModelMaker(self.inputs, self.wavebin, self.wavebin['mcfit']['values'][:,0])
         model = modelobj.makemodel()
@@ -268,12 +303,12 @@ class Plotter(Talker):
         lcplots.setdefault('lcplusmodel', []).append(plt.subplot(gs[0:2,0]))
         lcplots.setdefault('residuals', []).append(plt.subplot(gs[2,0]))
 
-        lcplots['lcplusmodel'][0].plot(self.cube.subcube['bjd'][self.wavebin['binnedok']]-self.inputs.t0, self.wavebin['lc'], 'k.', alpha=0.7)
-        lcplots['lcplusmodel'][0].plot(self.cube.subcube['bjd'][self.wavebin['binnedok']]-self.inputs.t0, model, 'bo', alpha=0.5)
+        lcplots['lcplusmodel'][0].plot(self.cube.subcube['bjd'][self.wavebin['binnedok']]-t0, self.wavebin['lc'], 'k.', alpha=0.7)
+        lcplots['lcplusmodel'][0].plot(self.cube.subcube['bjd'][self.wavebin['binnedok']]-t0, model, 'bo', alpha=0.5)
         lcplots['lcplusmodel'][0].set_ylabel('lightcurve + model', fontsize=20)
 
-        lcplots['residuals'][0].plot(self.cube.subcube['bjd'][self.wavebin['binnedok']]-self.inputs.t0, self.wavebin['lc']-model, 'k.', alpha=0.7)
-        lcplots['residuals'][0].set_xlabel('bjd-'+str(self.inputs.t0), fontsize=20)
+        lcplots['residuals'][0].plot(self.cube.subcube['bjd'][self.wavebin['binnedok']]-t0, self.wavebin['lc']-model, 'k.', alpha=0.7)
+        lcplots['residuals'][0].set_xlabel('bjd-'+str(t0), fontsize=20)
         lcplots['residuals'][0].set_ylabel('residuals', fontsize=20)
 
         plt.suptitle(self.inputs.nightname+' lightcurve plus mcmc model, '+self.wavefile+' angstroms', fontsize=20)
@@ -283,9 +318,9 @@ class Plotter(Talker):
 
         self.speak('making mcfit detrended lightcurve with batman model vs time figure')
         plt.figure()
-        plt.plot(self.cube.subcube['bjd'][self.wavebin['binnedok']]-self.inputs.t0, self.wavebin['lc']/modelobj.fitmodel, 'ko', alpha=0.5)
-        plt.plot(self.cube.subcube['bjd'][self.wavebin['binnedok']]-self.inputs.t0, modelobj.batmanmodel, color="#4682b4", lw=2)
-        plt.xlabel('bjd-'+str(self.inputs.t0), fontsize=20)
+        plt.plot(self.cube.subcube['bjd'][self.wavebin['binnedok']]-t0, self.wavebin['lc']/modelobj.fitmodel, 'ko', alpha=0.5)
+        plt.plot(self.cube.subcube['bjd'][self.wavebin['binnedok']]-t0, modelobj.batmanmodel, color="#4682b4", lw=2)
+        plt.xlabel('bjd-'+str(t0), fontsize=20)
         plt.ylabel('normalized flux', fontsize=20)
         plt.title('mcfit for '+self.inputs.nightname+', '+self.wavefile+' angstroms')
         plt.tight_layout()
@@ -294,7 +329,7 @@ class Plotter(Talker):
         plt.close()
 
         self.speak('making rms vs binsize figure after mcfit')
-        time = self.wavebin['compcube']['bjd'] - self.inputs.t0     # days
+        time = self.wavebin['compcube']['bjd'] - t0     # days
         time = time*24.*60.                                         # time now in minutes
         sigma_resid = np.std(self.wavebin['lc']-model)
         numbins = 1

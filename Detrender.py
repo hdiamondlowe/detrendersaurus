@@ -85,7 +85,7 @@ class Detrender(Talker, Writer):
             self.speak('detrending data from nights {0} in directory {1}'.format(self.inputs.nightname, self.directoryname))
 
             for w, wavefile in enumerate(self.lcs.wavebin.wavefiles):
-                if self.inputs.fixedrp != False:
+                if self.inputs.fixedrp:
                     rpind = np.where(np.array(self.inputs.tranlabels) == 'rp')[0][0]
                     self.inputs.tranparams[rpind] = self.inputs.fixedrp[w]
                     Writer.__init__(self, self.inputs.saveas+'_'+wavefile+'.txt')
@@ -95,7 +95,7 @@ class Detrender(Talker, Writer):
 
             if self.inputs.domcmc:
                 for wavefile in self.lcs.wavebin.wavefiles:
-                    if self.inputs.fixedrp != False:
+                    if self.inputs.fixedrp:
                         rpind = np.where(np.array(self.inputs.tranlabels) == 'rp')[0][0]
                         self.inputs.tranparams[rpind] = self.inputs.fixedrp[w]
                         Writer.__init__(self, self.inputs.saveas+'_'+wavefile+'.txt')
@@ -108,7 +108,7 @@ class Detrender(Talker, Writer):
             self.speak('detrending data from night {0} in directory {1}'.format(self.inputs.nightname, self.directoryname))
 
             for w, wavefile in enumerate(self.lcs.wavebin.wavefiles):
-                if self.inputs.fixedrp != False:
+                if self.inputs.fixedrp:
                     rpind = np.where(np.array(self.inputs.tranlabels) == 'rp')[0][0]
                     self.inputs.tranparams[rpind] = self.inputs.fixedrp[w]
                     Writer.__init__(self, self.inputs.saveas+'_'+wavefile+'.txt')
@@ -118,7 +118,7 @@ class Detrender(Talker, Writer):
 
             if self.inputs.domcmc:
                 for wavefile in self.lcs.wavebin.wavefiles:
-                    if self.inputs.fixedrp != False:
+                    if self.inputs.fixedrp:
                         rpind = np.where(np.array(self.inputs.tranlabels) == 'rp')[0][0]
                         self.inputs.tranparams[rpind] = self.inputs.fixedrp[w]
                         Writer.__init__(self, self.inputs.saveas+'_'+wavefile+'.txt')

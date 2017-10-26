@@ -1,6 +1,7 @@
 import zachopy.Talker
 Talker = zachopy.Talker.Talker
 import os
+import numpy as np
 from shutil import copyfile
 from datetime import datetime
 from astropy.table import Table
@@ -111,17 +112,24 @@ class Inputs(Talker):
                 self.comparison.append(s['aperture'])
                 self.comparisonpx.append(s['extraction_window'])
 
+        self.optext = str_to_bool(dictionary['optext'])
+        self.istarget = str_to_bool(dictionary['istarget'])
+        self.isasymm = str_to_bool(dictionary['isasymm'])
+        self.invvar = str_to_bool(dictionary['invvar'])
+        self.polyfit = str_to_bool(dictionary['polyfit'])
+        self.ldmodel = str_to_bool(dictionary['ldmodel'])
+        self.domcmc = str_to_bool(dictionary['domcmc'])
+
         self.fitlabels = dictionary['fitlabels']
+        if self.polyfit: self.polylabels = dictionary['polylabels']
         self.T0 = float(dictionary['T0'])
         self.P = float(dictionary['P'])
         self.Tdur = float(dictionary['Tdur'])
-        self.b = float(dictionary['b'])
+        self.inc = float(dictionary['inc'])
         self.a = float(dictionary['a'])
         self.ecc = float(dictionary['ecc'])
         self.epochnum = int(dictionary['epochnum'])
         self.toff = self.T0 + self.P*self.epochnum
-        self.t0 = str_to_bool(dictionary['t0'])
-        if type(self.t0) == bool: self.t0 = self.toff
 
 
         self.tranlabels = dictionary['tranlabels']
@@ -135,10 +143,17 @@ class Inputs(Talker):
             return
 
         self.fitparams = [1 for f in self.fitlabels]
+        if self.polyfit: self.polyparams = [1 for p in self.polylabels]
 
         self.freeparambounds = [[], []]
         self.freeparamnames = []
         self.freeparamvalues = []
+        if self.polyfit:
+            for p, plabel in enumerate(self.polylabels):
+                self.freeparambounds[0].append(True)
+                self.freeparambounds[1].append(True)
+                self.freeparamnames.append(plabel)
+                self.freeparamvalues.append(self.polyparams[p])
         for f, flabel in enumerate(self.fitlabels):
             self.freeparambounds[0].append(True)
             self.freeparambounds[1].append(True)
@@ -152,20 +167,18 @@ class Inputs(Talker):
             self.freeparamnames.append(tlabel)
             self.freeparamvalues.append(self.tranparams[t])
 
+        dtind = int(np.where(np.array(self.tranlabels) == 'dt')[0])
+        self.t0 = self.toff + self.tranparams[dtind]
+
         self.binlen = str_to_bool(dictionary['binlen'])
         self.sigclip = float(dictionary['sigclip'])
 
         self.mcmccode = dictionary['mcmccode']
-        self.nwalkers = int(dictionary['nwalkers'])
-        self.nsteps = int(dictionary['nsteps'])
-        self.burnin = int(dictionary['burnin'])
-
-        self.optext = str_to_bool(dictionary['optext'])
-        self.istarget = str_to_bool(dictionary['istarget'])
-        self.isasymm = str_to_bool(dictionary['isasymm'])
-        self.invvar = str_to_bool(dictionary['invvar'])
-        self.ldmodel = str_to_bool(dictionary['ldmodel'])
-        self.domcmc = str_to_bool(dictionary['domcmc'])
+        if self.mcmccode == 'dynesty': pass
+        elif self.mcmccode == 'emcee':
+            self.nwalkers = int(dictionary['nwalkers'])
+            self.nsteps = int(dictionary['nsteps'])
+            self.burnin = int(dictionary['burnin'])
 
         self.mastern = dictionary['mastern']
         self.starmasterstr = dictionary['starmasterstr']+self.mastern+'.npy'

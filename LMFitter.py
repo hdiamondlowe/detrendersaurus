@@ -55,10 +55,12 @@ class LMFitter(Talker, Writer):
 
         def residuals1(params):
             model = lineareqn(params)
-            residuals = (self.wavebin['lc'] - model)/self.wavebin['photnoiselim'] # weight by photon noise limit (expected noise)
+            residuals = (self.wavebin['lc'] - model)/self.wavebin['photnoiseest'] # weight by photon noise limit (expected noise)
             return residuals
 
-        self.linfit1 = lmfit.minimize(residuals1, lmfitparams)
+        fit_kws={'epsfcn':1e-5}  # set the stepsize to something small but reasonable; withough this lmfit may have trouble perturbing values
+            #, 'full_output':True, 'xtol':1e-5, 'ftol':1e-5, 'gtol':1e-5}
+        self.linfit1 = lmfit.minimize(fcn=residuals1, params=lmfitparams, method='leastsq', **fit_kws)
         self.write('1st lm params:')
         [self.write('    '+name+'    '+str(self.linfit1.params[name].value)) for name in self.inputs.freeparamnames]
 
@@ -82,6 +84,7 @@ class LMFitter(Talker, Writer):
         newbinnedok = np.ones(self.wavebin['lc'].shape, dtype=bool)
         newbinnedok[clip_inds] = False
         self.wavebin['lc'] = self.wavebin['lc'][newbinnedok]
+        self.wavebin['photnoiseest'] = self.wavebin['photnoiseest'][newbinnedok]
         self.wavebin['compcube'] = self.cube.makeCompCube(self.wavebin['bininds'], self.wavebin['binnedok'])
         self.write('clipped points: {0}'.format(clip_start+clip_inds))
         np.save(self.inputs.saveas+'_'+self.wavefile, self.wavebin)
@@ -98,14 +101,12 @@ class LMFitter(Talker, Writer):
 
         def residuals2(params):
             model = lineareqn(params)
-            residuals = (self.wavebin['lc'] - model)/self.wavebin['photnoiselim'] # weight by photon noise limit (expected noise)
+            residuals = (self.wavebin['lc'] - model)/self.wavebin['photnoiseest'] # weight by photon noise limit (expected noise)
             return residuals
 
-        self.linfit2 = lmfit.minimize(residuals2, lmfitparams)
+        self.linfit2 = lmfit.minimize(fcn=residuals2, params=lmfitparams, method='leastsq', **fit_kws)
         self.write('2nd lm params:')
         [self.write('    '+name+'    '+str(self.linfit2.params[name].value)) for name in self.inputs.freeparamnames]
-        #[[self.write('    '+flabel+str(n)+'    '+str(self.linfit2.params[flabel+str(n)].value)) for flabel in self.inputs.fitlabels[n]] for n in range(len(self.inputs.nightname))]
-        #[self.write('    '+tlabel+'    '+str(self.linfit2.params[tlabel].value)) for tlabel in self.freetranlabels]
 
         ######### do a third fit, now with calculated uncertainties ########
         
@@ -124,14 +125,14 @@ class LMFitter(Talker, Writer):
         modelobj = ModelMaker(self.inputs, self.wavebin, linfit2paramvals)
         model = modelobj.makemodel()
         resid = self.wavebin['lc'] - model
-        data_unc = np.var(resid)
+        data_unc = np.std(resid)
 
         def residuals3(params):
             model = lineareqn(params)
             residuals = (self.wavebin['lc'] - model)/data_unc # weight by calculated uncertainty
             return residuals
 
-        self.linfit3 = lmfit.minimize(residuals3, lmfitparams)
+        self.linfit3 = lmfit.minimize(fcn=residuals3, params=lmfitparams, method='leastsq', **fit_kws)
         self.write('3rd lm params:')
         [self.write('    '+name+'    '+str(self.linfit3.params[name].value)) for name in self.inputs.freeparamnames]
         #[[self.write('    '+flabel+str(n)+'    '+str(self.linfit3.params[flabel+str(n)].value)) for flabel in self.inputs.fitlabels[n]] for n in range(len(self.inputs.nightname))]
@@ -150,7 +151,7 @@ class LMFitter(Talker, Writer):
         self.write('lmfit SDNR: '+str(data_unc))  # this is the same as the rms!
 
         # how many times the expected noise is the rms?
-        self.write('x expected noise: {0}'.format(data_unc/self.wavebin['photnoiselim']))
+        self.write('x expected noise: {0}'.format(data_unc/np.mean(self.wavebin['photnoiseest'])))
 
         # make BIC calculations
         # var = np.power(data_unc, 2.)
@@ -174,7 +175,7 @@ class LMFitter(Talker, Writer):
         np.save(self.inputs.saveas+'_'+self.wavefile, self.wavebin)
 
         plot = Plotter(self.inputs, self.cube)
-        plot.lmplots(self.wavebin)
+        plot.lmplots(self.wavebin, [self.linfit1, self.linfit2, self.linfit3])
 
         self.speak('done with lmfit for wavelength bin {0}'.format(self.wavefile))
 

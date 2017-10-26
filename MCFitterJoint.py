@@ -155,12 +155,10 @@ class MCFitterJoint(Talker, Writer):
         self.write('mcfit RMS: '+str(np.sqrt(np.sum(allresid**2)/len(allresid))))
 
         # how many times the expected noise is the rms?
-        totphotnoise = []
         for n, night in enumerate(self.inputs.nightname):
-            totphotnoise.append(self.wavebin['photnoiselim'][n]**2)
-        totphotnoise = np.sqrt(np.sum(totphotnoise))
-        self.write('total expected noise: {0}'.format(totphotnoise))
-        self.write('x total expected noise: {0}'.format(data_unc/totphotnoise))
+            self.write('x mean expected noise for {0}: {1}'.format(night, np.std(resid[n])/np.mean(self.wavebin['photnoiseest'][n])))
+        self.write('x median mean expected noise for joint fit: {0}'.format(np.median([np.std(resid[n])/np.mean(self.wavebin['photnoiseest'][n]) for n in range(len(self.inputs.nightname))])))
+
 
         self.speak('saving mcfit to wavelength bin {0}'.format(self.wavefile))
         self.wavebin['mcfit']['values'] = self.mcparams
@@ -176,27 +174,58 @@ class MCFitterJoint(Talker, Writer):
         if self.inputs.ldmodel:
             self.limbdarkparams(self.wavebin['wavelims'][0]/10., self.wavebin['wavelims'][1]/10.)
 
+        for n, night in enumerate(self.inputs.nightname):
+            self.inputs.freeparamnames.append('s'+str(n))
+            self.inputs.freeparamvalues.append(1)
+            self.inputs.freeparambounds[0].append(0.01)
+            self.inputs.freeparambounds[1].append(10.)
+
         self.mcmcbounds = [[],[]]
         self.mcmcbounds[0] = [i for i in self.inputs.freeparambounds[0]]
         self.mcmcbounds[1] = [i for i in self.inputs.freeparambounds[1]]
 
         for u in range(len(self.inputs.freeparamnames)):
-            if type(self.mcmcbounds[0][u]) == bool and self.mcmcbounds[0][u] == True: self.mcmcbounds[0][u] = self.wavebin['lmfit']['values'][u]-self.wavebin['lmfit']['uncs'][u]*10.
-            if type(self.mcmcbounds[1][u]) == bool and self.mcmcbounds[1][u] == True: self.mcmcbounds[1][u] = self.wavebin['lmfit']['values'][u]+self.wavebin['lmfit']['uncs'][u]*10.
+            if type(self.mcmcbounds[0][u]) == bool and self.mcmcbounds[0][u] == True: self.mcmcbounds[0][u] = self.wavebin['lmfit']['values'][u]-self.wavebin['lmfit']['uncs'][u]*25.
+            if type(self.mcmcbounds[1][u]) == bool and self.mcmcbounds[1][u] == True: self.mcmcbounds[1][u] = self.wavebin['lmfit']['values'][u]+self.wavebin['lmfit']['uncs'][u]*25.
         self.write('lower and upper bounds for mcmc walkers:')
         for b, name in enumerate(self.inputs.freeparamnames):
             self.write('    '+name + '    '+str(self.mcmcbounds[0][b])+'    '+str(self.mcmcbounds[1][b]))
 
+        ''' 
+        # using a fixed estimate of the data uncertainty from the lmfit
+        # this is a good assumption when the uncertainty during a given night and across multiple nigthts is roughly uniform
+        modelobj = ModelMakerJoint(self.inputs, self.wavebin, self.wavebin['lmfit']['values'])
+        models = modelobj.makemodel()
+        data_uncs = []
+        for n, night in enumerate(self.inputs.nightname):
+            resid = self.wavebin['lc'][n] - models[n]
+            data_uncs.append(np.var(resid))                     # data uncs are the variances for each night
+        self.write('data uncs for mcfit loglikelihood: {0}'.format(data_uncs))
+
         def lnlike(p):
             modelobj = ModelMakerJoint(self.inputs, self.wavebin, p)
             models = modelobj.makemodel()
-            residuals = []
+            norm_sqrd_residuals = []
             for n, night in enumerate(self.inputs.nightname):
-                residuals.append(self.wavebin['lc'][n] - models[n])
-            residuals = np.hstack(residuals)
-            sigmasq= (np.std(residuals))**2
-            logl = -0.5*np.sum((residuals)**2/sigmasq + np.log(2.*np.pi*sigmasq)) 
+                norm_sqrd_residuals.append(((self.wavebin['lc'][n] - models[n])**2)/data_uncs[n])
+            all_norm_sqrd_residuals = np.hstack(norm_sqrd_residuals)
+            logl = -0.5*np.sum(all_norm_sqrd_residuals)
             return logl
+        '''
+
+        # rescaling uncertainties as a free parameter during the fit (Berta, et al. 2011, references therein)
+        def lnlike(p):
+            modelobj = ModelMakerJoint(self.inputs, self.wavebin, p)
+            models = modelobj.makemodel()
+            logl = []
+            for n, night in enumerate(self.inputs.nightname):
+                # p[sind] is an 's' parameter; if the uncertainties do not need to be re-scaled then s = 1
+                # there is a single 's' parameter for each night's fit - helpful if a dataset is far from the photon noise
+                sind = int(np.where(np.array(self.inputs.freeparamnames) == 's'+str(n))[0])
+                penaltyterm = -len(self.wavebin['photnoiseest'][n]) * np.log(p[sind])
+                chi2 = ((self.wavebin['lc'][n] - models[n])/self.wavebin['photnoiseest'][n])**2
+                logl.append(penaltyterm - 0.5*(1./(p[sind]**2))*np.sum(chi2))
+            return np.sum(logl)
 
         def ptform(p):
             x = np.array(p)
@@ -207,6 +236,7 @@ class MCFitterJoint(Talker, Writer):
 
         ndim = len(self.inputs.freeparamnames)
 
+        self.speak('running dynesty')
         self.dsampler = dynesty.DynamicNestedSampler(lnlike, ptform, ndim=ndim, bound='multi', sample='slice', update_interval=float(ndim))
         self.dsampler.run_nested(nlive_init=int(5*ndim), nlive_batch=int(5*ndim), wt_kwargs={'pfrac': 1.0}) # place 100% of the weight on the posterior, don't sample the evidence
 
@@ -226,7 +256,7 @@ class MCFitterJoint(Talker, Writer):
         for n, night in enumerate(self.inputs.nightname):
             if 'dt'+str(n) in self.inputs.freeparamnames:
                 ind = int(np.where(np.array(self.inputs.freeparamnames) == 'dt'+str(n))[0])
-                self.inputs.t0 = self.mcparams[ind] + self.inputs.toff
+                self.inputs.t0[n] = self.mcparams[ind][0] + self.inputs.toff[n]
                 self.speak('mcfit reseting t0 parameter for {0}, transit midpoint = {1}'.format(night, self.inputs.t0[n]))
             self.write('mcfit transit midpoint for {0}: {1}'.format(night, self.inputs.t0[n]))
 
@@ -238,15 +268,12 @@ class MCFitterJoint(Talker, Writer):
             resid.append(self.wavebin['lc'][n] - models[n])
         allresid = np.hstack(resid)
         data_unc = np.std(allresid)
-        self.write('mcfit RMS: '+str(np.sqrt(np.sum(allresid**2)/len(allresid))))
+        self.write('mcfit overall RMS: '+str(data_unc))
 
         # how many times the expected noise is the rms?
-        totphotnoise = []
         for n, night in enumerate(self.inputs.nightname):
-            totphotnoise.append(self.wavebin['photnoiselim'][n]**2)
-        totphotnoise = np.sqrt(np.sum(totphotnoise))
-        self.write('total expected noise: {0}'.format(totphotnoise))
-        self.write('x total expected noise: {0}'.format(data_unc/totphotnoise))
+            self.write('x mean expected noise for {0}: {1}'.format(night, np.std(resid[n])/np.mean(self.wavebin['photnoiseest'][n])))
+        self.write('x median mean expected noise for joint fit: {0}'.format(np.median([np.std(resid[n])/np.mean(self.wavebin['photnoiseest'][n]) for n in range(len(self.inputs.nightname))])))
 
         plot = PlotterJoint(self.inputs, self.cube)
         plot.mcplots(self.wavebin)

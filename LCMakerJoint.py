@@ -79,8 +79,8 @@ class LCMakerJoint(Talker, Writer):
                     skyT = np.array(np.sum(self.cube.subcube[self.n]['sky'][self.inputs.target[self.n]][self.inputs.targetpx[self.n]] * bininds[:,0], 1)[self.cube.subcube[self.n]['ok']])
                     raw_countsC = np.sum(np.array([np.sum(self.cube.subcube[self.n]['raw_counts'][self.inputs.comparison[self.n][i]][self.inputs.comparisonpx[self.n][i]] * bininds[:,i+1], 1)[self.cube.subcube[self.n]['ok']] for i in range(len(self.inputs.comparison[self.n]))]), 0)
                     skyC = np.sum(np.array([np.sum(self.cube.subcube[self.n]['sky'][self.inputs.comparison[self.n][i]][self.inputs.comparisonpx[self.n][i]] * bininds[:,i+1], 1)[self.cube.subcube[self.n]['ok']] for i in range(len(self.inputs.comparison[self.n]))]), 0)
-                    sigmaT = np.mean(np.sqrt(raw_countsT+skyT)/raw_countsT)
-                    sigmaC = np.mean(np.sqrt(raw_countsC+skyC)/raw_countsC)
+                    sigmaT = np.sqrt(raw_countsT+skyT)/raw_countsT
+                    sigmaC = np.sqrt(raw_countsC+skyC)/raw_countsC
                     sigmaF = np.sqrt(sigmaT**2 + sigmaC**2)
 
                     # initiating writer for this particular wavelength bin output text file
@@ -103,15 +103,15 @@ class LCMakerJoint(Talker, Writer):
 
                     self.write('    photon noise limits:')
                     self.write('        target               comparison           T/C')
-                    self.write('        '+str(sigmaT)+'    '+str(sigmaC)+'    '+str(sigmaF))
+                    self.write('        '+str(np.mean(sigmaT))+'    '+str(np.mean(sigmaC))+'    '+str(np.mean(sigmaF)))
                     self.write('    fit labels: '+str(self.inputs.fitlabels[self.n]))
                     self.write('    tran labels: '+str(self.inputs.tranlabels[self.n]))
                     self.write('    tran params: '+str(self.inputs.tranparams[self.n]))
                     self.write('    tran bounds: '+str(self.inputs.tranbounds[self.n][0])+'\n                 '+str(self.inputs.tranbounds[self.n][1]))
 
                     # save the expected photon noise limit for the target/comparisons lightcurve
-                    if self.n == 0: bin['photnoiselim'] = [sigmaF]
-                    else: bin['photnoiselim'].append(sigmaF)
+                    if self.n == 0: bin['photnoiseest'] = [sigmaF]
+                    else: bin['photnoiseest'].append(sigmaF)
 
                     # make a lightcurves to work off of
                     raw_counts_targ = np.sum(self.cube.subcube[self.n]['raw_counts'][self.inputs.target[self.n]][self.inputs.targetpx[self.n]] * bininds[:,0], 1) # shape = (numexps)

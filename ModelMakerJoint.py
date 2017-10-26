@@ -2,6 +2,7 @@ import zachopy.Talker
 Talker = zachopy.Talker.Talker
 import numpy as np
 from BatmanLC import BatmanLC
+import astropy.units as u
 
 class ModelMakerJoint(Talker):
 
@@ -37,10 +38,13 @@ class ModelMakerJoint(Talker):
                 else: values[tranlabel] = self.inputs.tranparams[n][t]   
             tranvalues.append(values)
 
+        #print [tranvalues[n]['dt'] for n in range(len(self.inputs.nightname))]
+        #print self.params[0:11]
+
         if self.inputs.istarget == True and self.inputs.isasymm == False:
             self.batmanmodel = []
             for n, night in enumerate(self.inputs.nightname):
-                batman = BatmanLC(self.wavebin['compcube'][n]['bjd']-self.inputs.toff[n], tranvalues[n]['dt'], tranvalues[n]['rp'], tranvalues[n]['per'], tranvalues[n]['b'], tranvalues[n]['a'], tranvalues[n]['ecc'], tranvalues[n]['u0'], tranvalues[n]['u1'])
+                batman = BatmanLC(times=self.wavebin['compcube'][n]['bjd'], t0=self.inputs.toff[n]+tranvalues[n]['dt'], rp=tranvalues[n]['rp'], per=tranvalues[n]['per'], inc=tranvalues[n]['inc'], a=tranvalues[n]['a'], ecc=tranvalues[n]['ecc'], u0=tranvalues[n]['u0'], u1=tranvalues[n]['u1'])
                 batmanmodel = batman.batman_model()
                 if np.all(batmanmodel == 1.): self.speak('batman model returned all 1s')
                 self.batmanmodel.append(batmanmodel)

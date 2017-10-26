@@ -15,10 +15,23 @@ class ModelMaker(Talker):
     
     def makemodel(self):
 
-        x = []
-        for flabel in self.inputs.fitlabels:
-            paramind = int(np.where(np.array(self.inputs.freeparamnames) == flabel)[0])
-            x.append(self.params[paramind]*self.wavebin['compcube'][flabel])
+        if self.inputs.polyfit == True:
+            poly = []
+            for plabel in self.inputs.polylabels:
+                paramind = int(np.where(np.array(self.inputs.freeparamnames) == plabel)[0])
+                poly.append(self.params[paramind])
+            polymodel = poly[0] + poly[1]*(self.wavebin['compcube']['bjd']-self.inputs.toff) + poly[2]*(self.wavebin['compcube']['bjd']-self.inputs.toff)**2
+            x = []
+            for flabel in self.inputs.fitlabels:
+                paramind = int(np.where(np.array(self.inputs.freeparamnames) == flabel)[0])
+                x.append(self.params[paramind]*self.wavebin['compcube'][flabel])
+            parammodel = np.sum(x, 0)
+            self.fitmodel = polymodel + parammodel + 1
+        else:
+            x = []
+            for flabel in self.inputs.fitlabels:
+                paramind = int(np.where(np.array(self.inputs.freeparamnames) == flabel)[0])
+                x.append(self.params[paramind]*self.wavebin['compcube'][flabel])
             self.fitmodel = np.sum(x, 0) + 1
 
         tranvalues = {}
@@ -28,11 +41,13 @@ class ModelMaker(Talker):
                 tranvalues[tranlabel] = self.params[paramind]
             else: tranvalues[tranlabel] = self.inputs.tranparams[t]   
 
+        #print self.params
+
         if self.inputs.istarget == True and self.inputs.isasymm == False:
-            batman = BatmanLC(self.wavebin['compcube']['bjd']-self.inputs.toff, tranvalues['dt'], tranvalues['rp'], tranvalues['per'], tranvalues['b'], tranvalues['a'], tranvalues['ecc'], tranvalues['u0'], tranvalues['u1'])
+            batman = BatmanLC(self.wavebin['compcube']['bjd'], self.inputs.toff+tranvalues['dt'], tranvalues['rp'], tranvalues['per'], tranvalues['inc'], tranvalues['a'], tranvalues['ecc'], tranvalues['u0'], tranvalues['u1'])
             self.batmanmodel = batman.batman_model()
             if np.all(self.batmanmodel == 1.): self.speak('batman model returned all 1s')
-        if self.inputs.istarget == True and self.inputs.isasymm == True:
+        elif self.inputs.istarget == True and self.inputs.isasymm == True:
             rp, tau0, tau1, tau2 = [], [], [], []
             numtau = 0
             for k in tranvalues.keys():

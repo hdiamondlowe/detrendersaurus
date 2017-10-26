@@ -22,7 +22,9 @@ from datetime import datetime
 # where the analysis files are stored
 basepath = '/h/mulan0/analysis/GJ1132/alldata/'
 directoryname = 'joint'
-rundir = '2017-09-25-18:37_bin200A-dynesty/'
+#rundir = '2017-09-25-18:37_bin200A-dynesty/'
+#rundir = 'bin200A-dynesty-compilation/'
+rundir = 'bin200A-dynestynew-compilation/'
 
 # get model transmission spectrum
 specpath = '/home/hdiamond/local/lib/Exo_Transmit/Spectra/'
@@ -49,23 +51,30 @@ def loadrun(directory, inputs, wavefile):
     rprsind = int(np.where(np.array(inputs.freeparamnames) == 'rp0')[0])
     try:
         rprs = wavebin['mcfit']['values'][rprsind][0]
-        rprsunc = np.mean([wavebin['mcfit']['values'][rprsind][1], wavebin['mcfit']['values'][rprsind][2]])
+        rprsunc = np.array([wavebin['mcfit']['values'][rprsind][1], wavebin['mcfit']['values'][rprsind][2]])
         modelobj = ModelMakerJoint(inputs, wavebin, wavebin['mcfit']['values'][:,0])
-        model = modelobj.makemodel()
+        models = modelobj.makemodel()
+        print '        using mcfit values'
     except(KeyError):
         rprs = wavebin['lmfit']['values'][rprsind]
         rprsunc = wavebin['lmfit']['uncs'][rprsind]
         modelobj = ModelMakerJoint(inputs, wavebin, wavebin['lmfit']['values'])
-        model = modelobj.makemodel()
+        models = modelobj.makemodel()
+        print '        using lmfit values'
     depth = rprs**2
-    #depthunc = depth*2*(rprsunc/rprs)
-    depthunc = 2.*rprsunc
+    depthunc = depth*2*(rprsunc/rprs)
+    print '        depth [%]', depth*100.
+    print '        depth unc [%, %]', depthunc*100.
 
+    resid = []
     for n, night in enumerate(inputs.nightname):
         loldict[night][wavefile]['lc'] = wavebin['lc'][n]
         loldict[night][wavefile]['binnedok'] = wavebin['binnedok'][n]
         loldict[night][wavefile]['fitmodel'] = modelobj.fitmodel[n]
         loldict[night][wavefile]['batmanmodel'] = modelobj.batmanmodel[n]
+        resid.append(wavebin['lc'][n] - models[n])
+        print '        x expected noise for {0}: {1}'.format(night, np.std(resid[n])/wavebin['photnoiselim'][n])
+    print '        median expected noise for joint fit: {0}'.format(np.median([np.std(resid[n])/wavebin['photnoiselim'][n] for n in range(len(inputs.nightname))]))
     loldict['joint'][wavefile]['depth'] = depth
     loldict['joint'][wavefile]['depthunc'] = depthunc
 
@@ -82,7 +91,7 @@ subcube = np.load(path+'joint_subcube.npy')[()]
 for n, night in enumerate(inputs.nightname):
     loldict[night] = collections.defaultdict(dict)
     loldict[night]['bjd'] = subcube[n]['bjd']
-    loldict[night]['t0'] = inputs.t0[n]
+    loldict[night]['t0'] = inputs.t0[n]     # make sure this number is correct - may have to change in input files
 loldict['joint'] = collections.defaultdict(dict)
 loldict['joint']['wavelims'] = inputs.wavelength_lims
 numbins = np.floor((inputs.wavelength_lims[1] - inputs.wavelength_lims[0])/inputs.binlen)
@@ -160,7 +169,7 @@ def transmission(flag='absolute', model=True):
 
             xaxis = [np.mean(wavefilelim)/10000. for wavefilelim in wavefilelims]
             depth =  [loldict['joint'][w]['depth']*100. for w in wavefiles]
-            depthunc =  [loldict['joint'][w]['depthunc']*100. for w in wavefiles]
+            depthunc =  [np.mean(loldict['joint'][w]['depthunc']*100.) for w in wavefiles]
             plt.errorbar(xaxis, depth, yerr=depthunc, fmt='o', markersize=8, color=colors[0], markeredgecolor=colors[0], ecolor=colors[0], elinewidth=2, capsize=0, alpha=0.8, label=r'$\rm joint\ fit\ data$')
 
             # linear fit to the transit depths
@@ -179,17 +188,30 @@ def transmission(flag='absolute', model=True):
             fit_binned_depths = np.array(fit_binned_depths)
 
             # figure out how to move the atmosphere model to best match the points (only shifting, not chaning the size of the features)
-            #for i in range(1000):
-                
+            chisq_H2 = np.inf
+            best_offset = 0.0
+            for i in np.linspace(-.1, .1, 1000):
+                model_offset = model_binned_depths + i
+                chisq_offset = np.sum(((depth - model_offset)/np.mean(depthunc))**2)
+                if chisq_offset < chisq_H2: 
+                    chisq_H2 = chisq_offset
+                    best_offset = i
+                #chisq_H2_array.append(chisq_offset)
+            #plt.figure()
+            #n, bins, patches = plt.hist(chisq_H2_array)
+            #plt.show()
+        
+            model_binned_depths = model_binned_depths + best_offset
 
-            chisq = np.sum(np.power((depth - model_binned_depths)/depthunc, 2.))
+            chisq = np.sum(np.power((depth - model_binned_depths)/np.mean(depthunc), 2.))
             print 'chisq_H2:', chisq
-            chisq_flat = np.sum(np.power((depth - np.array([np.median(depth) for i in depth]))/depthunc, 2.))
+            chisq_flat = np.sum(np.power((depth - np.array([np.median(depth) for i in depth]))/np.mean(depthunc), 2.))
             print 'chisq_flat:', chisq_flat
-            chisq_fit = np.sum(np.power((depth - fit_binned_depths)/depthunc, 2.))
+            chisq_fit = np.sum(np.power((depth - fit_binned_depths)/np.mean(depthunc), 2.))
             print 'chisq_fit:', chisq_fit
 
-            plt.plot(model_wavelengths, model_depths*scale*100., color='k', alpha=0.5, linewidth=2, label=r'$100\%\ H_2/He,\ \chi^2 = {0}$'.format('%.2f'%chisq))
+            plt.figure(1)
+            plt.plot(model_wavelengths, model_depths*scale*100.+best_offset, color='k', alpha=0.5, linewidth=2, label=r'$100\%\ H_2/He,\ \chi^2 = {0}$'.format('%.2f'%chisq))
             plt.plot(x, [np.median(depth) for i in x], 'k--', lw=2, alpha=0.6, label=r'$\rm flat\ \chi^2 = {0}$'.format('%.2f'%chisq_flat))
             plt.plot(x, p(x), 'k:', lw=2, alpha=0.6, label=r'$\rm fit\ \chi^2 = {0}$'.format('%.2f'%chisq_fit))
 
@@ -255,8 +277,8 @@ def alldata():
 
     xaxis = [np.mean(wavefilelim)/10000. for wavefilelim in wavefilelims]
     depth =  [loldict['joint'][w]['depth']*100. for w in wavefiles]
-    depthunc =  [loldict['joint'][w]['depthunc']*100. for w in wavefiles]
-    plt.errorbar(xaxis, depth, yerr=depthunc, fmt='o', markersize=8, color='b', markeredgecolor='b', ecolor='b', elinewidth=2, capsize=0, alpha=0.8, label=r'This work')
+    depthunc =  [np.mean(loldict['joint'][w]['depthunc']*100.) for w in wavefiles]
+    plt.errorbar(xaxis, depth, yerr=depthunc, fmt='o', markersize=8, color='royalblue', markeredgecolor='royalblue', ecolor='royalblue', elinewidth=2, capsize=0, alpha=0.8, label=r'This work')
 
     # southworth data
     #southworth_star = 0.255 * u.solRad
@@ -277,10 +299,9 @@ def alldata():
     southworth_rprs = southworth_rb/southworth_RA_a
     southworth_rprs_uncs = southworth_rb_unc/southworth_RA_a
     southworth_depths = southworth_rprs**2
-    #southworth_depths_uncs = southworth_depths*np.sqrt(2.*((southworth_rprs_uncs/southworth_rprs)**2))
-    southworth_depths_uncs = 2.*southworth_rprs_uncs
+    southworth_depths_uncs = southworth_depths*2.*(southworth_rprs_uncs/southworth_rprs)
     southworth_labels = ['g', 'r', 'i', 'z', 'J', 'H', 'K']
-    plt.errorbar(southworth_wave, southworth_depths*100., yerr=southworth_depths_uncs*100., color='m', fmt='o', markersize=8, markeredgecolor='m', ecolor='m', elinewidth=2, capsize=0, alpha=0.8, label='Southworth, et al. (2017)')
+    plt.errorbar(southworth_wave, southworth_depths*100., yerr=southworth_depths_uncs*100., color='darkorchid', fmt='o', markersize=8, markeredgecolor='darkorchid', ecolor='darkorchid', elinewidth=2, capsize=0, alpha=0.8, label='Southworth, et al. (2017)')
     #plt.plot(southworth_wave, southworth_depths/np.median(weighted_depths), yerr=southworth_depths_uncs/np.median(weighted_depths), color='k', fmt='o', markersize=10, markeredgecolor='k', ecolor=color'k', elinewidth=3, capsize=4, alpha=0.6, label='Southworth')
 
     # MEarth data
@@ -289,8 +310,8 @@ def alldata():
     mearth_rprs_unc = 0.0006
     mearth_depth = mearth_rprs**2
     mearth_depth_unc = mearth_depth*np.sqrt(2.*((mearth_rprs_unc/mearth_rprs)**2))
-    mearth_label = 'MEarth, Dittmann et al. (2016)'
-    plt.errorbar(mearth_wave, mearth_depth*100., yerr=mearth_depth_unc*100., color='g', fmt='o', markersize=8, markeredgecolor='g', ecolor='g', elinewidth=2, capsize=0, alpha=0.8, label=mearth_label)
+    mearth_label = 'MEarth, Dittmann et al. (2017)'
+    plt.errorbar(mearth_wave, mearth_depth*100., yerr=mearth_depth_unc*100., color='forestgreen', fmt='o', markersize=8, markeredgecolor='forestgreen', ecolor='forestgreen', elinewidth=2, capsize=0, alpha=0.8, label=mearth_label)
     #plt.errorbar(mearth_wave, mearth_depth/np.median(weighted_depths), yerr=mearth_depth_unc/np.median(weighted_depths), color='k', fmt='o', markersize=10, markeredgecolor='k', ecolor=color'k', elinewidth=3, capsize=4, alpha=0.6)
 
     # Spitzer data
@@ -299,8 +320,8 @@ def alldata():
     spitzer_rprs_unc = 0.0008
     spitzer_depth = spitzer_rprs**2
     spitzer_depth_unc = spitzer_depth*np.sqrt(2.*((spitzer_rprs_unc/spitzer_rprs)**2))
-    spitzer_label = 'Spitzer, Dittmann et al. (2016)'
-    plt.errorbar(spitzer_wave, spitzer_depth*100., yerr=spitzer_depth_unc*100.,  fmt='o', color='r', markersize=8, markeredgecolor='r', ecolor='r', elinewidth=2, capsize=0, alpha=0.8, label=spitzer_label)
+    spitzer_label = 'Spitzer, Dittmann et al. (2017)'
+    plt.errorbar(spitzer_wave, spitzer_depth*100., yerr=spitzer_depth_unc*100.,  fmt='o', color='firebrick', markersize=8, markeredgecolor='firebrick', ecolor='firebrick', elinewidth=2, capsize=0, alpha=0.8, label=spitzer_label)
     #plt.errorbar(spitzer_wave, spitzer_depth/np.median(weighted_depths), yerr = spitzer_depth_unc/np.median(weighted_depths), color='k', fmt='o', markersize=10, markeredgecolor='k', ecolor=color'k', elinewidth=3, capsize=4, alpha=0.6)
 
     plt.legend(loc='best')
@@ -312,4 +333,3 @@ def alldata():
     plt.xlabel('wavelength [microns]')
     plt.tight_layout()
     plt.show()
-

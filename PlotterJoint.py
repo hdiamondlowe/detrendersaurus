@@ -22,7 +22,7 @@ class PlotterJoint(Talker):
         self.inputs = inputs
         self.cube = cube
 
-    def lmplots(self, wavebin):
+    def lmplots(self, wavebin, linfits):
 
         self.wavebin = wavebin
         self.wavefile = str(self.wavebin['wavelims'][0])+'-'+str(self.wavebin['wavelims'][1])
@@ -34,13 +34,22 @@ class PlotterJoint(Talker):
         modelobj = ModelMakerJoint(self.inputs, self.wavebin, self.wavebin['lmfit']['values'])
         models = modelobj.makemodel()
 
+        t0 = []
+        for n, night in enumerate(self.inputs.nightname):
+            if 'dt'+str(n) in self.inputs.freeparamnames:
+                dtind = int(np.where(np.array(self.inputs.freeparamnames) == 'dt'+str(n))[0])
+                t0.append(self.inputs.toff[n] + self.wavebin['lmfit']['values'][dtind])
+            else:
+                dtind = int(np.where(np.array(self.inputs.tranlabels[n]) == 'dt')[0])
+                t0.append(self.inputs.toff[n] + self.inputs.tranparams[n][dtind])
+
         self.speak('making lmfit detrended lightcurve with batman model vs time figure')
         plt.figure()
         for n, night in enumerate(self.inputs.nightname):
-            plt.plot(self.cube.subcube[n]['bjd'][self.wavebin['binnedok'][n]]-self.inputs.t0[n], self.wavebin['lc'][n]/modelobj.fitmodel[n], 'o', alpha=0.5)
+            plt.plot(self.cube.subcube[n]['bjd'][self.wavebin['binnedok'][n]]-t0[n], self.wavebin['lc'][n]/modelobj.fitmodel[n], 'o', alpha=0.5)
         for n, night in enumerate(self.inputs.nightname):
-            plt.plot(self.cube.subcube[n]['bjd'][self.wavebin['binnedok'][n]]-self.inputs.t0[n], modelobj.batmanmodel[n], 'k-', lw=2)
-        plt.xlabel('time from mid-transit', fontsize=20)
+            plt.plot(self.cube.subcube[n]['bjd'][self.wavebin['binnedok'][n]]-t0[n], modelobj.batmanmodel[n], 'k-', lw=2)
+        plt.xlabel('time from mid-transit [days]', fontsize=20)
         plt.ylabel('normalized flux', fontsize=20)
         plt.title('lmfit for joint fit, '+self.wavefile+' angstroms', fontsize=20)
         #plt.tight_layout()
@@ -66,6 +75,17 @@ class PlotterJoint(Talker):
         plt.savefig(self.inputs.saveas+'_'+self.wavefile+'_residuals_hist.png')
         plt.clf()
         plt.close()
+
+        self.speak('making lmfit residuals plot for each lmfit call')
+        for i, linfit in enumerate(linfits):
+            plt.plot(range(len(linfit.residual)), linfit.residual, '.', alpha=.6, label='linfit'+str(i)+', chi2 = '+str(linfit.chisqr))
+        plt.xlabel('data number')
+        plt.ylabel('residuals')
+        plt.legend(loc='best')
+        plt.savefig(self.inputs.saveas+'_'+self.wavefile+'_linfit_residuals.png')
+        plt.clf()
+        plt.close()
+        
 
         plt.close('all')
 
@@ -109,9 +129,10 @@ class PlotterJoint(Talker):
             plt.clf()
             plt.close()
 
-        elif self.input.mcmccode == 'dynesty':
+        elif self.inputs.mcmccode == 'dynesty':
 
             truths = self.wavebin['lmfit']['values']
+            for n in range(len(self.inputs.nightname)): truths.append(1)
 
             # trace plot
             fig, axes = dyplot.traceplot(self.wavebin['mcfit']['results'], labels=self.inputs.freeparamnames, post_color='royalblue', truths=truths, truth_color='firebrick', truth_kwargs={'alpha': 0.8}, fig=plt.subplots(len(self.inputs.freeparamnames), 2, figsize=(12, 30)), trace_kwargs={'edgecolor':'none'})
@@ -127,15 +148,24 @@ class PlotterJoint(Talker):
             plt.close()
             '''
 
+        t0 = []
+        for n, night in enumerate(self.inputs.nightname):
+            if 'dt'+str(n) in self.inputs.freeparamnames:
+                dtind = int(np.where(np.array(self.inputs.freeparamnames) == 'dt'+str(n))[0])
+                t0.append(self.inputs.toff[n] + self.wavebin['mcfit']['values'][dtind][0])
+            else:
+                dtind = int(np.where(np.array(self.inputs.tranlabels[n]) == 'dt')[0])
+                t0.append(self.inputs.toff[n] + self.inputs.tranparams[n][dtind])
+
         modelobj = ModelMakerJoint(self.inputs, self.wavebin, self.wavebin['mcfit']['values'][:,0])
         models = modelobj.makemodel()
         self.speak('making mcfit detrended lightcurve with batman model vs time figure')
         plt.figure()
         for n, night in enumerate(self.inputs.nightname):
-            plt.plot(self.cube.subcube[n]['bjd'][self.wavebin['binnedok'][n]]-self.inputs.t0[n], self.wavebin['lc'][n]/modelobj.fitmodel[n], 'o', alpha=0.5)
+            plt.plot(self.cube.subcube[n]['bjd'][self.wavebin['binnedok'][n]]-t0[n], self.wavebin['lc'][n]/modelobj.fitmodel[n], 'o', alpha=0.5)
         for n, night in enumerate(self.inputs.nightname):
-            plt.plot(self.cube.subcube[n]['bjd'][self.wavebin['binnedok'][n]]-self.inputs.t0[n], modelobj.batmanmodel[n], 'k-', lw=2)
-        plt.xlabel('time from mid-transit', fontsize=20)
+            plt.plot(self.cube.subcube[n]['bjd'][self.wavebin['binnedok'][n]]-t0[n], modelobj.batmanmodel[n], 'k-', lw=2)
+        plt.xlabel('time from mid-transit [days]', fontsize=20)
         plt.ylabel('normalized flux', fontsize=20)
         plt.title('mcfit for joint fit, '+self.wavefile+' angstroms', fontsize=20)
         #plt.tight_layout()

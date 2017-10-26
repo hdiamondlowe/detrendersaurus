@@ -70,11 +70,10 @@ class LMFitterJoint(Talker, Writer):
         fit_kws={'epsfcn':1e-5}  # set the stepsize to something small but reasonable; withough this lmfit may have trouble perturbing values
             #, 'full_output':True, 'xtol':1e-5, 'ftol':1e-5, 'gtol':1e-5}
         self.linfit1 = lmfit.minimize(fcn=residuals1, params=lmfitparams, method='leastsq', **fit_kws)
+        linfit1paramvals = [self.linfit1.params[name].value for name in self.inputs.freeparamnames]
+        linfit1uncs = np.sqrt(np.diagonal(self.linfit1.covar))
         self.write('1st lm params:')
-        [self.write('    '+name+'    '+str(self.linfit1.params[name].value)) for name in self.inputs.freeparamnames]
-        #[[self.write('    '+flabel+str(n)+'    '+str(self.linfit1.params[flabel+str(n)].value)) for flabel in self.inputs.fitlabels[n]] for n in range(len(self.inputs.nightname))]
-        #self.write('    '+tlabel+'    '+str(self.linfit1.params[tlabel].value)) for tlabel in self.freetranlabels]
-
+        [self.write('    '+self.inputs.freeparamnames[i]+'    '+str(linfit1paramvals[i])+'  +/-  '+str(linfit1uncs[i])) for i in range(len(self.inputs.freeparamnames))]
 
         ######### do a second fit with priors, now that you know what the initial scatter is ########
         
@@ -121,10 +120,10 @@ class LMFitterJoint(Talker, Writer):
             return np.hstack(residuals)
 
         self.linfit2 = lmfit.minimize(fcn=residuals2, params=lmfitparams, method='leastsq', **fit_kws)
+        linfit2paramvals = [self.linfit2.params[name].value for name in self.inputs.freeparamnames]
+        linfit2uncs = np.sqrt(np.diagonal(self.linfit2.covar))
         self.write('2nd lm params:')
-        [self.write('    '+name+'    '+str(self.linfit2.params[name].value)) for name in self.inputs.freeparamnames]
-        #[[self.write('    '+flabel+str(n)+'    '+str(self.linfit2.params[flabel+str(n)].value)) for flabel in self.inputs.fitlabels[n]] for n in range(len(self.inputs.nightname))]
-        #[self.write('    '+tlabel+'    '+str(self.linfit2.params[tlabel].value)) for tlabel in self.freetranlabels]
+        [self.write('    '+self.inputs.freeparamnames[i]+'    '+str(linfit2paramvals[i])+'  +/-  '+str(linfit2uncs[i])) for i in range(len(self.inputs.freeparamnames))]
 
         ######### do a third fit, now with calculated uncertainties ########
         
@@ -157,10 +156,10 @@ class LMFitterJoint(Talker, Writer):
             return np.hstack(residuals)
 
         self.linfit3 = lmfit.minimize(fcn=residuals3, params=lmfitparams, method='leastsq', **fit_kws)
+        linfit3paramvals = [self.linfit3.params[name].value for name in self.inputs.freeparamnames]
+        linfit3uncs = np.sqrt(np.diagonal(self.linfit3.covar))
         self.write('3rd lm params:')
-        [self.write('    '+name+'    '+str(self.linfit3.params[name].value)) for name in self.inputs.freeparamnames]
-        #[[self.write('    '+flabel+str(n)+'    '+str(self.linfit3.params[flabel+str(n)].value)) for flabel in self.inputs.fitlabels[n]] for n in range(len(self.inputs.nightname))]
-        #[self.write('    '+tlabel+'    '+str(self.linfit3.params[tlabel].value)) for tlabel in self.freetranlabels]
+        [self.write('    '+self.inputs.freeparamnames[i]+'    '+str(linfit3paramvals[i])+'  +/-  '+str(linfit3uncs[i])) for i in range(len(self.inputs.freeparamnames))]
 
         for n, night in enumerate(self.inputs.nightname):
             if 'dt'+str(n) in self.linfit3.params.keys():

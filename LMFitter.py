@@ -61,8 +61,11 @@ class LMFitter(Talker, Writer):
         fit_kws={'epsfcn':1e-5}  # set the stepsize to something small but reasonable; withough this lmfit may have trouble perturbing values
             #, 'full_output':True, 'xtol':1e-5, 'ftol':1e-5, 'gtol':1e-5}
         self.linfit1 = lmfit.minimize(fcn=residuals1, params=lmfitparams, method='leastsq', **fit_kws)
+        linfit1paramvals = [self.linfit1.params[name].value for name in self.inputs.freeparamnames]
+        linfit1uncs = np.sqrt(np.diagonal(self.linfit1.covar))
         self.write('1st lm params:')
-        [self.write('    '+name+'    '+str(self.linfit1.params[name].value)) for name in self.inputs.freeparamnames]
+        [self.write('    '+self.inputs.freeparamnames[i]+'    '+str(linfit1paramvals[i])+'  +/-  '+str(linfit1uncs[i])) for i in range(len(self.inputs.freeparamnames))]
+
 
 
         ######### do a second fit with priors, now that you know what the initial scatter is ########
@@ -70,7 +73,6 @@ class LMFitter(Talker, Writer):
         self.speak('running second lmfit after clipping >{0} sigma points'.format(self.inputs.sigclip))
  
         # median absolute deviation sigma clipping to specified sigma value from inputs
-        linfit1paramvals = [self.linfit1.params[name].value for name in self.inputs.freeparamnames]
         modelobj = ModelMaker(self.inputs, self.wavebin, linfit1paramvals)
         model = modelobj.makemodel()
         resid = self.wavebin['lc'] - model
@@ -105,8 +107,10 @@ class LMFitter(Talker, Writer):
             return residuals
 
         self.linfit2 = lmfit.minimize(fcn=residuals2, params=lmfitparams, method='leastsq', **fit_kws)
+        linfit2paramvals = [self.linfit2.params[name].value for name in self.inputs.freeparamnames]
+        linfit2uncs = np.sqrt(np.diagonal(self.linfit2.covar))
         self.write('2nd lm params:')
-        [self.write('    '+name+'    '+str(self.linfit2.params[name].value)) for name in self.inputs.freeparamnames]
+        [self.write('    '+self.inputs.freeparamnames[i]+'    '+str(linfit2paramvals[i])+'  +/-  '+str(linfit2uncs[i])) for i in range(len(self.inputs.freeparamnames))]
 
         ######### do a third fit, now with calculated uncertainties ########
         
@@ -121,7 +125,6 @@ class LMFitter(Talker, Writer):
             else: maxbound = self.inputs.freeparambounds[1][n]
             lmfitparams[name].set(min=minbound, max=maxbound)
 
-        linfit2paramvals = [self.linfit2.params[name].value for name in self.inputs.freeparamnames]
         modelobj = ModelMaker(self.inputs, self.wavebin, linfit2paramvals)
         model = modelobj.makemodel()
         resid = self.wavebin['lc'] - model
@@ -133,17 +136,16 @@ class LMFitter(Talker, Writer):
             return residuals
 
         self.linfit3 = lmfit.minimize(fcn=residuals3, params=lmfitparams, method='leastsq', **fit_kws)
+        linfit3paramvals = [self.linfit3.params[name].value for name in self.inputs.freeparamnames]
+        linfit3uncs = np.sqrt(np.diagonal(self.linfit3.covar))
         self.write('3rd lm params:')
-        [self.write('    '+name+'    '+str(self.linfit3.params[name].value)) for name in self.inputs.freeparamnames]
-        #[[self.write('    '+flabel+str(n)+'    '+str(self.linfit3.params[flabel+str(n)].value)) for flabel in self.inputs.fitlabels[n]] for n in range(len(self.inputs.nightname))]
-        #[self.write('    '+tlabel+'    '+str(self.linfit3.params[tlabel].value)) for tlabel in self.freetranlabels]
+        [self.write('    '+self.inputs.freeparamnames[i]+'    '+str(linfit3paramvals[i])+'  +/-  '+str(linfit3uncs[i])) for i in range(len(self.inputs.freeparamnames))]
 
         if 'dt' in self.linfit3.params.keys():
             self.inputs.t0 = self.linfit3.params['dt'] + self.inputs.toff
             self.speak('lmfit reseting t0 parameter, midpoint = {0}'.format(self.inputs.t0))
         self.write('lmfit transit midpoint: {0}'.format(self.inputs.t0))
 
-        linfit3paramvals = [self.linfit3.params[name].value for name in self.inputs.freeparamnames]
         modelobj = ModelMaker(self.inputs, self.wavebin, linfit3paramvals)
         model = modelobj.makemodel()
         resid = self.wavebin['lc'] - model
@@ -165,7 +167,7 @@ class LMFitter(Talker, Writer):
         self.speak('saving lmfit to wavelength bin {0}'.format(self.wavefile))
         self.wavebin['lmfit'] = {}
         self.wavebin['lmfit']['values'] = linfit3paramvals
-        try: self.wavebin['lmfit']['uncs'] = np.sqrt(np.diagonal(self.linfit3.covar))
+        try: self.wavebin['lmfit']['uncs'] = linfit3uncs
         except(ValueError):
             self.speak('the linear fit returned no uncertainties, consider changing tranbounds values')
             return

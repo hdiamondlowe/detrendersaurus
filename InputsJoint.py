@@ -5,6 +5,7 @@ import numpy as np
 from shutil import copyfile
 from datetime import datetime
 from astropy.table import Table
+import string
 
 #  an object that reads in an input.init file, stores all of the information, and also makes a copy of that file to the directory everything will get saved to
 class InputsJoint(Talker):
@@ -137,6 +138,9 @@ class InputsJoint(Talker):
 
         if self.n == 0:
             self.fitlabels = [dictionary['fitlabels']]
+            if type(self.fitlabels[self.n]) == str: self.fitlabels[self.n] = [self.fitlabels[self.n]]
+            self.polyfit = [int(dictionary['polyfit'])]
+            self.polylabels = [[string.uppercase[x] for x in range(self.polyfit[self.n])]]
             self.T0 = float(dictionary['T0'])
             self.P = float(dictionary['P'])
             self.Tdur = float(dictionary['Tdur'])
@@ -148,6 +152,9 @@ class InputsJoint(Talker):
 
         else:
             self.fitlabels.append(dictionary['fitlabels'])
+            if type(self.fitlabels[self.n]) == str: self.fitlabels[self.n] = [self.fitlabels[self.n]]
+            self.polyfit.append(int(dictionary['polyfit']))
+            self.polylabels.append([string.uppercase[x] for x in range(self.polyfit[self.n])])
             self.epochnum.append(int(dictionary['epochnum']))
             self.toff.append(self.T0 + self.P*self.epochnum[self.n])
 
@@ -163,10 +170,16 @@ class InputsJoint(Talker):
                 return
 
             self.fitparams = [[1 for f in self.fitlabels[self.n]]]
+            self.polyparams = [[1 for p in self.polylabels[self.n]]]
 
             self.freeparambounds = [[], []]
             self.freeparamnames = []
             self.freeparamvalues = []
+            for p, plabel in enumerate(self.polylabels[self.n]):
+                self.freeparambounds[0].append(True)
+                self.freeparambounds[1].append(True)
+                self.freeparamnames.append(plabel+str(self.n))
+                self.freeparamvalues.append(self.polyparams[self.n][p])
             for f, flabel in enumerate(self.fitlabels[self.n]):
                 self.freeparambounds[0].append(True)
                 self.freeparambounds[1].append(True)
@@ -189,7 +202,13 @@ class InputsJoint(Talker):
             self.tranbounds.append([[str_to_bool(i) for i in dictionary['tranbounds_low']], [str_to_bool(i) for i in dictionary['tranbounds_high']]])
 
             self.fitparams.append([1 for f in self.fitlabels[self.n]])
+            self.polyparams.append([1 for p in self.polylabels[self.n]])
 
+            for p, plabel in enumerate(self.polylabels[self.n]):
+                self.freeparambounds[0].append(True)
+                self.freeparambounds[1].append(True)
+                self.freeparamnames.append(plabel+str(self.n))
+                self.freeparamvalues.append(self.polyparams[self.n][p])
             for f, flabel in enumerate(self.fitlabels[self.n]):
                 self.freeparambounds[0].append(True)
                 self.freeparambounds[1].append(True)

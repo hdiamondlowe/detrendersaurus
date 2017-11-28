@@ -5,6 +5,7 @@ import numpy as np
 from shutil import copyfile
 from datetime import datetime
 from astropy.table import Table
+import string
 
 #  an object that reads in an input.init file, stores all of the information, and also makes a copy of that file to the directory everything will get saved to
 class Inputs(Talker):
@@ -116,12 +117,13 @@ class Inputs(Talker):
         self.istarget = str_to_bool(dictionary['istarget'])
         self.isasymm = str_to_bool(dictionary['isasymm'])
         self.invvar = str_to_bool(dictionary['invvar'])
-        self.polyfit = str_to_bool(dictionary['polyfit'])
         self.ldmodel = str_to_bool(dictionary['ldmodel'])
         self.domcmc = str_to_bool(dictionary['domcmc'])
 
         self.fitlabels = dictionary['fitlabels']
-        if self.polyfit: self.polylabels = dictionary['polylabels']
+        if type(self.fitlabels) == str: self.fitlabels = [self.fitlabels]
+        self.polyfit = int(dictionary['polyfit'])
+        self.polylabels = [string.uppercase[x] for x in range(self.polyfit)]
         self.T0 = float(dictionary['T0'])
         self.P = float(dictionary['P'])
         self.Tdur = float(dictionary['Tdur'])
@@ -143,17 +145,16 @@ class Inputs(Talker):
             return
 
         self.fitparams = [1 for f in self.fitlabels]
-        if self.polyfit: self.polyparams = [1 for p in self.polylabels]
+        self.polyparams = [1 for p in self.polylabels]
 
         self.freeparambounds = [[], []]
         self.freeparamnames = []
         self.freeparamvalues = []
-        if self.polyfit:
-            for p, plabel in enumerate(self.polylabels):
-                self.freeparambounds[0].append(True)
-                self.freeparambounds[1].append(True)
-                self.freeparamnames.append(plabel)
-                self.freeparamvalues.append(self.polyparams[p])
+        for p, plabel in enumerate(self.polylabels):
+            self.freeparambounds[0].append(True)
+            self.freeparambounds[1].append(True)
+            self.freeparamnames.append(plabel)
+            self.freeparamvalues.append(self.polyparams[p])
         for f, flabel in enumerate(self.fitlabels):
             self.freeparambounds[0].append(True)
             self.freeparambounds[1].append(True)

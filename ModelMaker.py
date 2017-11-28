@@ -15,24 +15,21 @@ class ModelMaker(Talker):
     
     def makemodel(self):
 
-        if self.inputs.polyfit == True:
-            poly = []
-            for plabel in self.inputs.polylabels:
-                paramind = int(np.where(np.array(self.inputs.freeparamnames) == plabel)[0])
-                poly.append(self.params[paramind])
-            polymodel = poly[0] + poly[1]*(self.wavebin['compcube']['bjd']-self.inputs.toff) + poly[2]*(self.wavebin['compcube']['bjd']-self.inputs.toff)**2
-            x = []
-            for flabel in self.inputs.fitlabels:
-                paramind = int(np.where(np.array(self.inputs.freeparamnames) == flabel)[0])
-                x.append(self.params[paramind]*self.wavebin['compcube'][flabel])
-            parammodel = np.sum(x, 0)
-            self.fitmodel = polymodel + parammodel + 1
-        else:
-            x = []
-            for flabel in self.inputs.fitlabels:
-                paramind = int(np.where(np.array(self.inputs.freeparamnames) == flabel)[0])
-                x.append(self.params[paramind]*self.wavebin['compcube'][flabel])
-            self.fitmodel = np.sum(x, 0) + 1
+        poly = []
+        for plabel in self.inputs.polylabels:
+            paramind = int(np.where(np.array(self.inputs.freeparamnames) == plabel)[0])
+            poly.append(self.params[paramind])
+        N = len(poly)
+        polymodel = 0
+        while N > 0:
+            polymodel = polymodel + poly[N-1]*(self.wavebin['compcube']['bjd']-self.inputs.toff)**(N-1)
+            N = N -1
+        x = []
+        for flabel in self.inputs.fitlabels:
+            paramind = int(np.where(np.array(self.inputs.freeparamnames) == flabel)[0])
+            x.append(self.params[paramind]*self.wavebin['compcube'][flabel])
+        parammodel = np.sum(x, 0)
+        self.fitmodel = polymodel + parammodel + 1
 
         tranvalues = {}
         for t, tranlabel in enumerate(self.inputs.tranlabels):

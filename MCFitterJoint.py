@@ -15,6 +15,7 @@ from emcee.utils import MPIPool
 from ModelMakerJoint import ModelMakerJoint
 from CubeReaderJoint import CubeReaderJoint
 from PlotterJoint import PlotterJoint
+import multiprocessing
 #import emceehelper as mc
 
 class MCFitterJoint(Talker, Writer):
@@ -235,6 +236,8 @@ class MCFitterJoint(Talker, Writer):
             return x
 
         ndim = len(self.inputs.freeparamnames)
+
+        #pool = multiprocessing.Pool(processes = multiprocessing.cpu_count())
 
         self.speak('running dynesty')
         self.dsampler = dynesty.DynamicNestedSampler(lnlike, ptform, ndim=ndim, bound='multi', sample='slice', update_interval=float(ndim))

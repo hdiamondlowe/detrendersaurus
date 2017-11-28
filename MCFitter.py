@@ -134,10 +134,12 @@ class MCFitter(Talker, Writer):
             self.limbdarkparams(self.wavebin['wavelims'][0]/10., self.wavebin['wavelims'][1]/10.)
 
         # add the 's' scaling parameter into the fit
-        self.inputs.freeparamnames.append('s')
-        self.inputs.freeparamvalues.append(1)
-        self.inputs.freeparambounds[0].append(0.01)
-        self.inputs.freeparambounds[1].append(10.)
+        if 's' in self.inputs.freeparamnames: pass
+        else:
+            self.inputs.freeparamnames.append('s')
+            self.inputs.freeparamvalues.append(1)
+            self.inputs.freeparambounds[0].append(0.01)
+            self.inputs.freeparambounds[1].append(10.)
 
         self.mcmcbounds = [[],[]]
         self.mcmcbounds[0] = [i for i in self.inputs.freeparambounds[0]]

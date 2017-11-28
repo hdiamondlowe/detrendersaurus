@@ -145,7 +145,7 @@ class LMFitter(Talker, Writer):
             self.inputs.t0 = self.linfit3.params['dt'] + self.inputs.toff
             self.speak('lmfit reseting t0 parameter, midpoint = {0}'.format(self.inputs.t0))
         self.write('lmfit transit midpoint: {0}'.format(self.inputs.t0))
-
+    
         modelobj = ModelMaker(self.inputs, self.wavebin, linfit3paramvals)
         model = modelobj.makemodel()
         resid = self.wavebin['lc'] - model

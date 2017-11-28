@@ -18,11 +18,22 @@ class ModelMakerJoint(Talker):
 
         self.fitmodel = []
         for n, night in enumerate(self.inputs.nightname):
+            poly = []
+            for plabel in self.inputs.polylabels[n]:
+                paramind = int(np.where(np.array(self.inputs.freeparamnames) == plabel+str(n))[0])
+                poly.append(self.params[paramind])
+            N = len(poly)
+            polymodel = 0
+            while N > 0:
+                polymodel = polymodel + poly[N-1]*(self.wavebin['compcube'][n]['bjd']-self.inputs.toff[n])**(N-1)
+                N = N -1
             x = []
             for flabel in self.inputs.fitlabels[n]:
                 paramind = int(np.where(np.array(self.inputs.freeparamnames) == flabel+str(n))[0])
                 x.append(self.params[paramind]*self.wavebin['compcube'][n][flabel])
-            self.fitmodel.append(np.sum(x, 0) + 1)
+            parammodel = np.sum(x, 0)
+            self.fitmodel.append(polymodel + parammodel + 1)
+
 
         tranvalues = []
         for n, night in enumerate(self.inputs.nightname):

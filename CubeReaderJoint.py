@@ -42,7 +42,7 @@ class CubeReaderJoint(Talker):
         airmass     = cube['temporal']['airmass']               # (time)
         rotangle    = cube['temporal']['rotatore']              # (time)
         pwv         = cube['temporal']['pwv']                   # (time)
-        norm        = np.ones(len(  bjd))                         # for normalization constant
+        norm        = np.ones(len(bjd))                         # for normalization constant
 
         centroid    = cube['squares']['centroid']               # [star][pix](time)
         width       = cube['squares']['width']                  # [star][pix](time)
@@ -59,6 +59,12 @@ class CubeReaderJoint(Talker):
         peak        = cube['cubes']['peak']                     # [star][pix](time, wave)
         wavelengths = cube['cubes']['wavelength_adjusted']
         #self.wavelengths_orig = cube['cubes']['wavelength_orig']
+
+        # remaking the pwv parameters such that it is the residuals of a linear fit of pwv(t) = a + b*airmass(t); this is change in pwv minus the effects of airmass
+        #z = np.polyfit(airmass, pwvraw, deg=1)
+        #pfit = np.poly1d(z)
+        #pwv = pwvraw-pfit(airmass)
+        
 
 
         self.speak('making subcube of just the arrays you care about from the full cube from {0}'.format(self.subdir))
@@ -135,21 +141,31 @@ class CubeReaderJoint(Talker):
             den = np.sum((1./sig2), 0)
 
         for key in ['centroid', 'width', 'stretch', 'shift']:
-            keyarray = np.array([self.subcube[self.n][key][self.inputs.comparison[self.n][i]][self.inputs.comparisonpx[self.n][i]][self.binnedok] for i in range(len(self.inputs.comparison[self.n]))])
+            #keyarray = np.array([self.subcube[self.n][key][self.inputs.comparison[self.n][i]][self.inputs.comparisonpx[self.n][i]][self.binnedok] for i in range(len(self.inputs.comparison[self.n]))])
             if self.inputs.invvar:
                 num = np.sum((keyarray/sig2), 0)
                 self.compcube[key] = num/den
             else:
-                summed = np.sum(keyarray, 0)
-                self.compcube[key] = (summed - np.mean(summed))/np.std(summed)
+                #summed = np.sum(keyarray, 0)
+                #self.compcube[key] = (summed - np.mean(summed))/np.std(summed)
+                # test if parameter should be difference between GJ 1132 and key
+                #summed = self.subcube[self.n][key][self.inputs.target[self.n]][self.inputs.targetpx[self.n]][self.binnedok] - np.sum(keyarray, 0)
+                # instead use GJ 1132 parameters to detrend against
+                keyarray = self.subcube[self.n][key][self.inputs.target[self.n]][self.inputs.targetpx[self.n]][self.binnedok]
+                self.compcube[key] = (keyarray - np.mean(keyarray))/np.std(keyarray)
 
         for key in ['raw_counts', 'sky', 'dcentroid', 'dwidth', 'peak']:
-            keyarray = np.array([np.sum(self.subcube[self.n][key][self.inputs.comparison[self.n][i]][self.inputs.comparisonpx[self.n][i]] * self.subbinindices[:, i+1], 1)[self.binnedok] for i in range(len(self.inputs.comparison[self.n]))])
+            #keyarray = np.array([np.sum(self.subcube[self.n][key][self.inputs.comparison[self.n][i]][self.inputs.comparisonpx[self.n][i]] * self.subbinindices[:, i+1], 1)[self.binnedok] for i in range(len(self.inputs.comparison[self.n]))])
             if self.inputs.invvar:
                 num = np.sum((keyarray/sig2), 0)
                 self.compcube[key] = num/den
             else: 
-                summed = np.sum(keyarray, 0)
-                self.compcube[key] = (summed - np.mean(summed))/np.std(summed)
+                #summed = np.sum(keyarray, 0)
+                # test if parameter should be difference between GJ 1132 and key
+                #summed = np.sum(self.subcube[self.n][key][self.inputs.target[self.n]][self.inputs.targetpx[self.n]] * self.subbinindices[:, i+1], 1)[self.binnedok] - np.sum(keyarray, 0)
+                #self.compcube[key] = (summed - np.mean(summed))/np.std(summed)
+                # instead use GJ 1132 parameters to detrend against
+                keyarray = np.sum(self.subcube[self.n][key][self.inputs.target[self.n]][self.inputs.targetpx[self.n]] * self.subbinindices[:, 0], 1)[self.binnedok]
+                self.compcube[key] = (keyarray - np.mean(keyarray))/np.std(keyarray)
 
         return self.compcube

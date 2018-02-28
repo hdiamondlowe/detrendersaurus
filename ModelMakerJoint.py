@@ -41,23 +41,50 @@ class ModelMakerJoint(Talker):
             for t, tranlabel in enumerate(self.inputs.tranlabels[n]):
                 if tranlabel+str(n) in self.inputs.freeparamnames:
                     paramind = int(np.where(np.array(self.inputs.freeparamnames) == tranlabel+str(n))[0])
-                    values[tranlabel] = self.params[paramind]
+                    # need to reparameterize t0 u0 and u1
+                    if tranlabel == 'u0': 
+                        if self.inputs.ldlaw == 'sq': values[tranlabel] = (75./34.)*self.params[paramind] + (45./34.)*self.params[paramind+1]
+                        elif self.inputs.ldlaw == 'qd': values[tranlabel] = (2./5.)*self.params[paramind] + (1./5.)*self.params[paramind+1]
+                    elif tranlabel == 'u1': 
+                        if self.inputs.ldlaw == 'sq': values[tranlabel] = (45./34.)*self.params[paramind-1] - (75./34.)*self.params[paramind]
+                        elif self.inputs.ldlaw == 'qd': values[tranlabel] = (1./5.)*self.params[paramind-1] - (2./5.)*self.params[paramind]
+                    else: values[tranlabel] = self.params[paramind]
                 elif self.inputs.tranbounds[n][0][t] == 'Joint':
                     jointset = int(self.inputs.tranbounds[n][1][t])
                     paramind = int(np.where(np.array(self.inputs.freeparamnames) == tranlabel+str(jointset))[0])
-                    values[tranlabel] = self.params[paramind]
-                else: values[tranlabel] = self.inputs.tranparams[n][t]   
+                    #values[tranlabel] = self.params[paramind]
+                    values[tranlabel] = tranvalues[jointset][tranlabel]
+                else: 
+                    # need to reparameterize to u0 and u1 (these were set to v0 and v1 during the ldtkparams step of lmfitter
+                    if tranlabel == 'u0': 
+                        if self.inputs.ldlaw == 'sq': values[tranlabel] = (75./34.)*self.inputs.tranparams[n][t] + (45./34.)*self.inputs.tranparams[n][t+1]
+                        elif self.inputs.ldlaw == 'qd': values[tranlabel] = (2./5.)*self.inputs.tranparams[n][t] + (1./5.)*self.inputs.tranparams[n][t+1]
+                    elif tranlabel == 'u1': 
+                        if self.inputs.ldlaw == 'sq': values[tranlabel] = (45./34.)*self.inputs.tranparams[n][t-1] - (75./34.)*self.inputs.tranparams[n][t]
+                        elif self.inputs.ldlaw == 'qd': values[tranlabel] = (1./5.)*self.inputs.tranparams[n][t-1] - (2./5.)*self.inputs.tranparams[n][t]
+                    else: values[tranlabel] = self.inputs.tranparams[n][t]   
+                    #values[tranlabel] = self.inputs.tranparams[n][t]   
             tranvalues.append(values)
 
+        #print tranvalues
         #print [tranvalues[n]['dt'] for n in range(len(self.inputs.nightname))]
         #print self.params[0:11]
 
         if self.inputs.istarget == True and self.inputs.isasymm == False:
             self.batmanmodel = []
+            '''
+            if self.inputs.batmanfac == 0:
+                n = 0
+                batman = BatmanLC(times=self.wavebin['compcube'][n]['bjd'], t0=self.inputs.toff[n]+tranvalues[n]['dt'], rp=tranvalues[n]['rp'], per=tranvalues[n]['per'], inc=tranvalues[n]['inc'], a=tranvalues[n]['a'], ecc=tranvalues[n]['ecc'], u0=tranvalues[n]['u0'], u1=tranvalues[n]['u1'], ldlaw=self.inputs.ldlaw, batmanfac=self.inputs.batmanfac)
+                fac = batman.batman_fac()
+                self.speak('stepsize factor is {0}'.format(fac))
+                self.inputs.batmanfac = round(fac, 3)
+                self.speak('setting setpsize factor to {0}'.format(self.inputs.batmanfac))
+            '''
             for n, night in enumerate(self.inputs.nightname):
-                batman = BatmanLC(times=self.wavebin['compcube'][n]['bjd'], t0=self.inputs.toff[n]+tranvalues[n]['dt'], rp=tranvalues[n]['rp'], per=tranvalues[n]['per'], inc=tranvalues[n]['inc'], a=tranvalues[n]['a'], ecc=tranvalues[n]['ecc'], u0=tranvalues[n]['u0'], u1=tranvalues[n]['u1'])
+                batman = BatmanLC(times=self.wavebin['compcube'][n]['bjd'], t0=self.inputs.toff[n]+tranvalues[n]['dt'], rp=tranvalues[n]['rp'], per=tranvalues[n]['per'], inc=tranvalues[n]['inc'], a=tranvalues[n]['a'], ecc=tranvalues[n]['ecc'], u0=tranvalues[n]['u0'], u1=tranvalues[n]['u1'], ldlaw=self.inputs.ldlaw)#, batmanfac=self.inputs.batmanfac)
                 batmanmodel = batman.batman_model()
-                if np.all(batmanmodel == 1.): self.speak('batman model returned all 1s')
+                if n == 0 and np.all(batmanmodel == 1.): self.speak('batman model returned all 1s')
                 self.batmanmodel.append(batmanmodel)
         if self.inputs.istarget == True and self.inputs.isasymm == True:
             rp, tau0, tau1, tau2 = [], [], [], []

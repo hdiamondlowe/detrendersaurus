@@ -10,6 +10,7 @@ from matplotlib.ticker import MaxNLocator
 import corner
 from dynesty import plotting as dyplot
 
+
 class PlotterJoint(Talker):
 
     '''this class will plot all the things you wish to see'''
@@ -24,6 +25,7 @@ class PlotterJoint(Talker):
 
     def lmplots(self, wavebin, linfits):
 
+        nightcolor = ['tomato', 'orange', 'lawngreen', 'aqua', 'fuchsia']
         self.wavebin = wavebin
         self.wavefile = str(self.wavebin['wavelims'][0])+'-'+str(self.wavebin['wavelims'][1])
 
@@ -44,14 +46,33 @@ class PlotterJoint(Talker):
                 t0.append(self.inputs.toff[n] + self.inputs.tranparams[n][dtind])
 
         self.speak('making lmfit detrended lightcurve with batman model vs time figure')
-        plt.figure()
+        plt.figure(figsize=(8, 15))
+        gs = plt.matplotlib.gridspec.GridSpec(3, 1, hspace=0.05, wspace=0.0, left=0.14,right=0.98, bottom=0.05, top=0.98)
+        plots = {}
+        plots['raw'] = plt.subplot(gs[0,0])
+        plots['detrend'] = plt.subplot(gs[1,0])
+        plots['residual'] = plt.subplot(gs[2,0])
         for n, night in enumerate(self.inputs.nightname):
-            plt.plot(self.cube.subcube[n]['bjd'][self.wavebin['binnedok'][n]]-t0[n], self.wavebin['lc'][n]/modelobj.fitmodel[n], 'o', alpha=0.5)
+            xaxis = np.array(self.cube.subcube[n]['bjd'][wavebin['binnedok'][n]]-t0[n])*24*60
+            plots['raw'].plot(xaxis, self.wavebin['lc'][n], 'o', color=nightcolor[n], markeredgecolor=nightcolor[n], alpha=0.75, label=str(n+1))
+            plots['detrend'].plot(xaxis, self.wavebin['lc'][n]/modelobj.fitmodel[n], 'o', color=nightcolor[n], markeredgecolor=nightcolor[n], alpha=0.6)
+            plots['residual'].plot(xaxis, (self.wavebin['lc'][n]-models[n])*1e6, 'o', color=nightcolor[n], markeredgecolor=nightcolor[n], alpha=0.6)
         for n, night in enumerate(self.inputs.nightname):
-            plt.plot(self.cube.subcube[n]['bjd'][self.wavebin['binnedok'][n]]-t0[n], modelobj.batmanmodel[n], 'k-', lw=2)
-        plt.xlabel('time from mid-transit [days]', fontsize=20)
-        plt.ylabel('normalized flux', fontsize=20)
-        plt.title('lmfit for joint fit, '+self.wavefile+' angstroms', fontsize=20)
+            xaxis = np.array(self.cube.subcube[n]['bjd'][wavebin['binnedok'][n]]-t0[n])*24*60
+            plots['raw'].plot(xaxis, models[n], 'k-', lw=2, alpha=0.4)
+            plots['detrend'].plot(xaxis, modelobj.batmanmodel[n], 'k-', lw=2, alpha=0.7)
+            plots['residual'].axhline(0.0, .09, .94, color='k', ls='-', lw=2, alpha=0.7)
+        plots['raw'].set_ylabel('normalized flux', fontsize=16)
+        plots['raw'].tick_params(axis='both', labelsize=12)
+        plots['raw'].legend(loc=1, ncol=len(self.inputs.nightname), mode='expand', frameon=False, fontsize=14)
+        plots['raw'].set_xticks([])
+        plots['detrend'].set_ylabel('normalized flux', fontsize=16)
+        plots['detrend'].tick_params(axis='both', labelsize=12)
+        plots['detrend'].set_xticks([])
+        plots['residual'].tick_params(axis='both', labelsize=12)
+        plots['residual'].set_ylabel('residuals [ppm]', fontsize=16)
+        plots['residual'].set_xlabel('time from mid-transit [min]', fontsize=16)
+        #plt.title('lmfit for joint fit, '+self.wavefile+' angstroms', fontsize=20)
         #plt.tight_layout()
         plt.savefig(self.inputs.saveas+'_'+self.wavefile+'_figure_lmfitdetrendedlc.png')
         plt.clf()
@@ -91,6 +112,7 @@ class PlotterJoint(Talker):
 
     def mcplots(self, wavebin):
 
+        nightcolor = ['tomato', 'orange', 'lawngreen', 'aqua', 'fuchsia']
         self.wavebin = wavebin
         self.wavefile = str(self.wavebin['wavelims'][0])+'-'+str(self.wavebin['wavelims'][1])
 
@@ -132,6 +154,10 @@ class PlotterJoint(Talker):
         elif self.inputs.mcmccode == 'dynesty':
 
             truths = self.wavebin['lmfit']['values']
+            # add the u0 and u1 truths, as well as the s parameter
+            v0, v1 = wavebin['ldparams'][0][0], wavebin['ldparams'][0][1]
+            truths.append(v0)
+            truths.append(v1)
             for n in range(len(self.inputs.nightname)): truths.append(1)
 
             # trace plot
@@ -147,6 +173,7 @@ class PlotterJoint(Talker):
             plt.clf()
             plt.close()
             '''
+            
 
         t0 = []
         for n, night in enumerate(self.inputs.nightname):
@@ -159,15 +186,36 @@ class PlotterJoint(Talker):
 
         modelobj = ModelMakerJoint(self.inputs, self.wavebin, self.wavebin['mcfit']['values'][:,0])
         models = modelobj.makemodel()
+
         self.speak('making mcfit detrended lightcurve with batman model vs time figure')
-        plt.figure()
+
+        plt.figure(figsize=(8, 15))
+        gs = plt.matplotlib.gridspec.GridSpec(3, 1, hspace=0.05, wspace=0.0, left=0.14,right=0.98, bottom=0.05, top=0.98)
+        plots = {}
+        plots['raw'] = plt.subplot(gs[0,0])
+        plots['detrend'] = plt.subplot(gs[1,0])
+        plots['residual'] = plt.subplot(gs[2,0])
         for n, night in enumerate(self.inputs.nightname):
-            plt.plot(self.cube.subcube[n]['bjd'][self.wavebin['binnedok'][n]]-t0[n], self.wavebin['lc'][n]/modelobj.fitmodel[n], 'o', alpha=0.5)
+            xaxis = np.array(self.cube.subcube[n]['bjd'][wavebin['binnedok'][n]]-t0[n])*24*60
+            plots['raw'].plot(xaxis, self.wavebin['lc'][n], 'o', color=nightcolor[n], markeredgecolor=nightcolor[n], alpha=0.75, label=str(n+1))
+            plots['detrend'].plot(xaxis, self.wavebin['lc'][n]/modelobj.fitmodel[n], 'o', color=nightcolor[n], markeredgecolor=nightcolor[n], alpha=0.6)
+            plots['residual'].plot(xaxis, (self.wavebin['lc'][n]-models[n])*1e6, 'o', color=nightcolor[n], markeredgecolor=nightcolor[n], alpha=0.6)
         for n, night in enumerate(self.inputs.nightname):
-            plt.plot(self.cube.subcube[n]['bjd'][self.wavebin['binnedok'][n]]-t0[n], modelobj.batmanmodel[n], 'k-', lw=2)
-        plt.xlabel('time from mid-transit [days]', fontsize=20)
-        plt.ylabel('normalized flux', fontsize=20)
-        plt.title('mcfit for joint fit, '+self.wavefile+' angstroms', fontsize=20)
+            xaxis = np.array(self.cube.subcube[n]['bjd'][wavebin['binnedok'][n]]-t0[n])*24*60
+            plots['raw'].plot(xaxis, models[n], 'k-', lw=2, alpha=0.4)
+            plots['detrend'].plot(xaxis, modelobj.batmanmodel[n], 'k-', lw=2, alpha=0.7)
+            plots['residual'].axhline(0.0, .09, .94, color='k', ls='-', lw=2, alpha=0.7)
+        plots['raw'].set_ylabel('normalized flux', fontsize=16)
+        plots['raw'].tick_params(axis='both', labelsize=12)
+        plots['raw'].legend(loc=1, ncol=len(self.inputs.nightname), mode='expand', frameon=False, fontsize=14)
+        plots['raw'].set_xticks([])
+        plots['detrend'].set_ylabel('normalized flux', fontsize=16)
+        plots['detrend'].tick_params(axis='both', labelsize=12)
+        plots['detrend'].set_xticks([])
+        plots['residual'].tick_params(axis='both', labelsize=12)
+        plots['residual'].set_ylabel('residuals [ppm]', fontsize=16)
+        plots['residual'].set_xlabel('time from mid-transit [min]', fontsize=16)
+        #plt.title('mcfit for joint fit, '+self.wavefile+' angstroms', fontsize=20)
         #plt.tight_layout()
         plt.savefig(self.inputs.saveas+'_'+self.wavefile+'_figure_mcfitdetrendedlc.png')
         plt.clf()

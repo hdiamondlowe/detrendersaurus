@@ -141,6 +141,16 @@ class InputsJoint(Talker):
             if type(self.fitlabels[self.n]) == str: self.fitlabels[self.n] = [self.fitlabels[self.n]]
             self.polyfit = [int(dictionary['polyfit'])]
             self.polylabels = [[string.uppercase[x] for x in range(self.polyfit[self.n])]]
+
+            self.Teff = float(dictionary['Teff'])
+            self.Teff_unc = float(dictionary['Teff_unc'])
+            self.logg = float(dictionary['logg'])
+            self.logg_unc = float(dictionary['logg_unc'])
+            self.z = float(dictionary['z'])
+            self.z_unc = float(dictionary['z_unc'])
+            self.ldlaw = str_to_bool(dictionary['ldlaw'])
+            #self.batmanfac = 0.023
+
             self.T0 = float(dictionary['T0'])
             self.P = float(dictionary['P'])
             self.Tdur = float(dictionary['Tdur'])
@@ -151,9 +161,14 @@ class InputsJoint(Talker):
             self.toff = [self.T0 + self.P*self.epochnum[self.n]]
 
         else:
-            self.fitlabels.append(dictionary['fitlabels'])
+            #self.fitlabels.append(dictionary['fitlabels'])
+            # quick hack to make testing go faster - all fit labels are the same for all nights so only set them for self.n = 0
+            print 'using hack to set all fitlabels to be the same as those from dataset0'
+            self.fitlabels.append(self.fitlabels[0])
             if type(self.fitlabels[self.n]) == str: self.fitlabels[self.n] = [self.fitlabels[self.n]]
-            self.polyfit.append(int(dictionary['polyfit']))
+            #self.polyfit.append(int(dictionary['polyfit']))
+            # quick hack to make testing go faster - all fit labels are the same for all nights so only set them for self.n = 0
+            self.polyfit.append(self.polyfit[0])
             self.polylabels.append([string.uppercase[x] for x in range(self.polyfit[self.n])])
             self.epochnum.append(int(dictionary['epochnum']))
             self.toff.append(self.T0 + self.P*self.epochnum[self.n])
